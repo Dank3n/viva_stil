@@ -14,7 +14,7 @@ import {
 import { services } from '../../data/services'
 import {
   getSpecialistById,
-  specialistsForService,
+  specialistsForServices,
 } from '../../data/specialists'
 import { ServiceStep } from './steps/ServiceStep'
 import { StaffStep } from './steps/StaffStep'
@@ -30,16 +30,24 @@ function stepIndex(step: BookingStep): number {
   return STEPS.indexOf(step)
 }
 
+function parseInitialServices(params: URLSearchParams): string[] {
+  const multi = params.getAll('service').filter((id) =>
+    services.some((s) => s.id === id),
+  )
+  if (multi.length) return [...new Set(multi)]
+  const single = params.get('service')
+  if (single && services.some((s) => s.id === single)) return [single]
+  return []
+}
+
 export function BookingWizard() {
   const [params, setParams] = useSearchParams()
-  const initialService = params.get('service') ?? ''
+  const initialServices = parseInitialServices(params)
 
   const [step, setStep] = useState<BookingStep>(
-    initialService && services.some((s) => s.id === initialService)
-      ? 'staff'
-      : 'service',
+    initialServices.length ? 'staff' : 'service',
   )
-  const [serviceId, setServiceId] = useState(initialService)
+  const [serviceIds, setServiceIds] = useState<string[]>(initialServices)
   const [staffId, setStaffId] = useState<string>(ANY_STAFF_ID)
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -47,9 +55,12 @@ export function BookingWizard() {
   const [confirmed, setConfirmed] = useState<Appointment | null>(null)
 
   useEffect(() => {
-    const fromUrl = params.get('service') ?? ''
-    if (fromUrl && services.some((s) => s.id === fromUrl) && fromUrl !== serviceId) {
-      setServiceId(fromUrl)
+    const fromUrl = parseInitialServices(params)
+    const same =
+      fromUrl.length === serviceIds.length &&
+      fromUrl.every((id) => serviceIds.includes(id))
+    if (fromUrl.length && !same) {
+      setServiceIds(fromUrl)
       setStaffId(ANY_STAFF_ID)
       setDate('')
       setTime('')
@@ -60,18 +71,20 @@ export function BookingWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params])
 
-  const service = useMemo(
-    () => services.find((s) => s.id === serviceId),
-    [serviceId],
+  const selectedServices = useMemo(
+    () => services.filter((s) => serviceIds.includes(s.id)),
+    [serviceIds],
   )
+
   const staffOptions = useMemo(
-    () => (serviceId ? specialistsForService(serviceId) : []),
-    [serviceId],
+    () => (serviceIds.length ? specialistsForServices(serviceIds) : []),
+    [serviceIds],
   )
+
   const availableDates = useMemo(() => {
-    if (!serviceId || !staffId) return []
-    return getAvailableDates(serviceId, staffId)
-  }, [serviceId, staffId])
+    if (!serviceIds.length || !staffId) return []
+    return getAvailableDates(serviceIds, staffId)
+  }, [serviceIds, staffId])
 
   useEffect(() => {
     if (step !== 'datetime') return
@@ -80,17 +93,25 @@ export function BookingWizard() {
   }, [step, availableDates, date])
 
   const slots = useMemo(() => {
-    if (!serviceId || !staffId || !date) return []
-    return getAvailableSlots(serviceId, staffId, date)
-  }, [serviceId, staffId, date])
+    if (!serviceIds.length || !staffId || !date) return []
+    return getAvailableSlots(serviceIds, staffId, date)
+  }, [serviceIds, staffId, date])
 
-  function selectService(id: string) {
-    setServiceId(id)
+  function toggleService(id: string) {
+    setServiceIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
+  }
+
+  function continueFromServices() {
+    if (!serviceIds.length) return
     setStaffId(ANY_STAFF_ID)
     setDate('')
     setTime('')
     setStartsAt('')
-    setParams({ service: id }, { replace: true })
+    const next = new URLSearchParams()
+    serviceIds.forEach((id) => next.append('service', id))
+    setParams(next, { replace: true })
     setStep('staff')
   }
 
@@ -114,11 +135,11 @@ export function BookingWizard() {
     clientPhone: string
     clientEmail: string
   }) {
-    if (!serviceId || !staffId || !date || !time || !startsAt) return
+    if (!serviceIds.length || !staffId || !date || !time || !startsAt) return
 
-    const resolvedStaff = resolveStaffForSlot(serviceId, staffId, date, time)
+    const resolvedStaff = resolveStaffForSlot(serviceIds, staffId, date, time)
     const appointment = createAppointment({
-      serviceId,
+      serviceIds,
       staffId: resolvedStaff,
       date,
       time,
@@ -133,7 +154,7 @@ export function BookingWizard() {
 
   function restart() {
     setStep('service')
-    setServiceId('')
+    setServiceIds([])
     setStaffId(ANY_STAFF_ID)
     setDate('')
     setTime('')
@@ -163,12 +184,16 @@ export function BookingWizard() {
 
       <div className="p-5 sm:p-8 lg:p-10">
         {step === 'service' ? (
-          <ServiceStep selectedId={serviceId} onSelect={selectService} />
+          <ServiceStep
+            selectedIds={serviceIds}
+            onToggle={toggleService}
+            onContinue={continueFromServices}
+          />
         ) : null}
 
-        {step === 'staff' && service ? (
+        {step === 'staff' && selectedServices.length > 0 ? (
           <StaffStep
-            service={service}
+            services={selectedServices}
             options={staffOptions}
             selectedId={staffId}
             onSelect={selectStaff}
@@ -176,9 +201,9 @@ export function BookingWizard() {
           />
         ) : null}
 
-        {step === 'datetime' && service ? (
+        {step === 'datetime' && selectedServices.length > 0 ? (
           <DateTimeStep
-            service={service}
+            services={selectedServices}
             staffLabel={staffLabel}
             availableDates={availableDates}
             slots={slots}
@@ -194,9 +219,9 @@ export function BookingWizard() {
           />
         ) : null}
 
-        {step === 'details' && service ? (
+        {step === 'details' && selectedServices.length > 0 ? (
           <DetailsStep
-            service={service}
+            services={selectedServices}
             staffLabel={staffLabel}
             date={date}
             time={time}
@@ -205,10 +230,10 @@ export function BookingWizard() {
           />
         ) : null}
 
-        {step === 'success' && confirmed && service ? (
+        {step === 'success' && confirmed && selectedServices.length > 0 ? (
           <SuccessStep
             appointment={confirmed}
-            service={service}
+            services={selectedServices}
             staffName={
               getSpecialistById(confirmed.staffId)?.name ?? staffLabel
             }

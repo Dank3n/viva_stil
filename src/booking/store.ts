@@ -4,8 +4,7 @@
  */
 
 import type { Appointment, AppointmentDraft } from './types'
-import { parseDurationMinutes } from './duration'
-import { services } from '../data/services'
+import { addMinutesToTime, totalDurationMinutes } from './duration'
 
 const STORAGE_KEY = 'viva-stil-appointments'
 
@@ -13,10 +12,17 @@ function load(): Appointment[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return seedAppointments()
-    return JSON.parse(raw) as Appointment[]
+    const parsed = JSON.parse(raw) as Appointment[]
+    return parsed.map(normalizeAppointment)
   } catch {
     return seedAppointments()
   }
+}
+
+function normalizeAppointment(a: Appointment): Appointment {
+  const serviceIds =
+    a.serviceIds?.length ? a.serviceIds : a.serviceId ? [a.serviceId] : []
+  return { ...a, serviceIds }
 }
 
 function save(items: Appointment[]) {
@@ -45,7 +51,7 @@ function seedAppointments(): Appointment[] {
   return [
     {
       id: 'apt-seed-1',
-      serviceId: 'coafat-perie-mediu',
+      serviceIds: ['coafat-perie-mediu'],
       staffId: 'george',
       date,
       time: '10:00',
@@ -59,7 +65,7 @@ function seedAppointments(): Appointment[] {
     },
     {
       id: 'apt-seed-2',
-      serviceId: 'manichiura-semipermanenta',
+      serviceIds: ['manichiura-semipermanenta'],
       staffId: 'larisa-radu',
       date: date2,
       time: '14:00',
@@ -95,15 +101,14 @@ export function getAppointmentsForDay(
 }
 
 export function createAppointment(draft: AppointmentDraft): Appointment {
-  const service = services.find((s) => s.id === draft.serviceId)
-  const duration = parseDurationMinutes(service?.duration ?? '30 min')
-  const start = new Date(draft.startsAt)
-  const end = new Date(start.getTime() + duration * 60_000)
+  const duration = totalDurationMinutes(draft.serviceIds)
+  const endTime = addMinutesToTime(draft.time, duration)
 
   const appointment: Appointment = {
     ...draft,
+    serviceIds: [...draft.serviceIds],
     id: `apt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    endsAt: end.toISOString(),
+    endsAt: `${draft.date}T${endTime}:00`,
     status: 'confirmed',
     createdAt: new Date().toISOString(),
   }

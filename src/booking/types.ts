@@ -15,12 +15,15 @@
  *   startTime ("08:00"), endTime ("22:00"), closed
  *
  * appointments
- *   id, serviceId, staffId, startsAt (ISO), endsAt (ISO),
+ *   id, serviceIds[], staffId, startsAt (ISO), endsAt (ISO),
  *   clientName, clientPhone, clientEmail?,
  *   status: 'pending' | 'confirmed' | 'cancelled' | 'completed',
  *   createdAt, notes?
  *
- * În producție: GET /api/availability?serviceId&staffId&date
+ * Durata blocată = suma duratelor serviciilor selectate
+ * (ex. 30 min + 60 min → blocare 90 min).
+ *
+ * În producție: GET /api/availability?serviceIds=&staffId=&date=
  *               POST /api/appointments
  */
 
@@ -40,7 +43,8 @@ export type TimeSlot = {
 }
 
 export type AppointmentDraft = {
-  serviceId: string
+  /** Unul sau mai multe servicii, același specialist. */
+  serviceIds: string[]
   /** staff id sau "any" */
   staffId: string
   date: string // YYYY-MM-DD
@@ -56,6 +60,17 @@ export type Appointment = AppointmentDraft & {
   endsAt: string
   status: 'confirmed' | 'pending' | 'cancelled'
   createdAt: string
+  /** @deprecated folosește serviceIds — păstrat pentru date vechi din localStorage */
+  serviceId?: string
 }
 
 export const ANY_STAFF_ID = 'any' as const
+
+export function getAppointmentServiceIds(a: {
+  serviceIds?: string[]
+  serviceId?: string
+}): string[] {
+  if (a.serviceIds?.length) return a.serviceIds
+  if (a.serviceId) return [a.serviceId]
+  return []
+}

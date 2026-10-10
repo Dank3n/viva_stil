@@ -5,7 +5,7 @@ import type { Specialist } from '../../../data/specialists'
 import { Button } from '../../ui/Button'
 
 type StaffStepProps = {
-  service: Service
+  services: Service[]
   options: Specialist[]
   selectedId: string
   onSelect: (id: string) => void
@@ -13,12 +13,17 @@ type StaffStepProps = {
 }
 
 export function StaffStep({
-  service,
+  services: selectedServices,
   options,
   selectedId,
   onSelect,
   onBack,
 }: StaffStepProps) {
+  const summary =
+    selectedServices.length === 1
+      ? selectedServices[0].name
+      : `${selectedServices.length} servicii`
+
   return (
     <div>
       <button
@@ -27,20 +32,31 @@ export function StaffStep({
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted transition-colors hover:text-text"
       >
         <ChevronLeft size={16} strokeWidth={1.75} aria-hidden />
-        Schimbă serviciul
+        Schimbă serviciile
       </button>
 
       <header className="mb-6">
         <p className="text-[0.7rem] font-medium uppercase tracking-[0.22em] text-taupe">
-          Pasul 2 · {service.name}
+          Pasul 2 · {summary}
         </p>
         <h2 className="mt-2 font-display text-2xl text-text sm:text-3xl">
           Alege specialistul
         </h2>
         <p className="mt-2 text-sm text-muted">
-          Sau lasă-ne pe noi să alegem primul specialist disponibil.
+          Același specialist pentru toate serviciile selectate.
         </p>
       </header>
+
+      {selectedServices.length > 1 ? (
+        <ul className="mb-6 space-y-1 border border-line bg-elevated/40 p-4 text-sm text-muted">
+          {selectedServices.map((s) => (
+            <li key={s.id} className="flex justify-between gap-3">
+              <span className="text-text">{s.name}</span>
+              <span className="shrink-0">{s.duration}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <ul className="grid gap-3">
         <li>
@@ -103,7 +119,8 @@ export function StaffStep({
 
       {options.length === 0 ? (
         <p className="mt-4 text-sm text-muted">
-          Nu există specialiști configurați pentru acest serviciu.
+          Nu există un specialist care să ofere toate serviciile selectate.
+          Scoate unul din servicii sau alege din aceeași categorie.
         </p>
       ) : (
         <div className="mt-6 sm:hidden">

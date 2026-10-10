@@ -1,10 +1,15 @@
 import { ChevronLeft } from 'lucide-react'
+import {
+  formatDurationLabel,
+  totalDurationMinutes,
+} from '../../../booking/duration'
+import { slotEndTime } from '../../../booking/availability'
 import type { TimeSlot } from '../../../booking/types'
 import type { Service } from '../../../data/services'
 import { Button } from '../../ui/Button'
 
 type DateTimeStepProps = {
-  service: Service
+  services: Service[]
   staffLabel: string
   availableDates: string[]
   slots: TimeSlot[]
@@ -42,7 +47,7 @@ function formatDayChip(dateStr: string) {
 }
 
 export function DateTimeStep({
-  service,
+  services: selectedServices,
   staffLabel,
   availableDates,
   slots,
@@ -52,7 +57,12 @@ export function DateTimeStep({
   onSelectSlot,
   onBack,
 }: DateTimeStepProps) {
+  const serviceIds = selectedServices.map((s) => s.id)
+  const totalMins = totalDurationMinutes(serviceIds)
   const openSlots = slots.filter((s) => s.available)
+  const endPreview = selectedTime
+    ? slotEndTime(selectedTime, serviceIds)
+    : null
 
   return (
     <div>
@@ -67,20 +77,23 @@ export function DateTimeStep({
 
       <header className="mb-6">
         <p className="text-[0.7rem] font-medium uppercase tracking-[0.22em] text-taupe">
-          Pasul 3 · {service.name}
+          Pasul 3 ·{' '}
+          {selectedServices.length === 1
+            ? selectedServices[0].name
+            : `${selectedServices.length} servicii`}
         </p>
         <h2 className="mt-2 font-display text-2xl text-text sm:text-3xl">
           Alege data și ora
         </h2>
         <p className="mt-2 text-sm text-muted">
-          {staffLabel} · durată {service.duration}
+          {staffLabel} · durată totală {formatDurationLabel(totalMins)}
         </p>
       </header>
 
       {availableDates.length === 0 ? (
         <p className="text-sm text-muted">
-          Nu există intervale libere în următoarele zile. Încearcă alt
-          specialist.
+          Nu există intervale libere de {formatDurationLabel(totalMins)} în
+          următoarele zile. Încearcă alt specialist sau mai puține servicii.
         </p>
       ) : (
         <>
@@ -133,22 +146,29 @@ export function DateTimeStep({
           {selectedDate ? (
             <div>
               <p className="mb-3 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-taupe">
-                Intervale libere
+                Intervale libere (început)
               </p>
               {openSlots.length === 0 ? (
                 <p className="text-sm text-muted">
-                  Nu mai sunt ore libere în această zi.
+                  Nu mai sunt ore libere de {formatDurationLabel(totalMins)} în
+                  această zi.
                 </p>
               ) : (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
                   {slots.map((slot) => {
                     const active =
                       slot.available && slot.time === selectedTime
+                    const end = slotEndTime(slot.time, serviceIds)
                     return (
                       <button
                         key={slot.time}
                         type="button"
                         disabled={!slot.available}
+                        title={
+                          slot.available
+                            ? `${slot.time} – ${end}`
+                            : 'Indisponibil'
+                        }
                         onClick={() =>
                           onSelectSlot(selectedDate, slot.time, slot.startsAt)
                         }
@@ -161,15 +181,32 @@ export function DateTimeStep({
                               : 'border-line bg-elevated/40 text-text hover:border-champagne/50',
                         ].join(' ')}
                       >
-                        {slot.time}
+                        <span className="block">{slot.time}</span>
+                        {slot.available ? (
+                          <span
+                            className={[
+                              'mt-0.5 block text-[0.65rem] font-normal',
+                              active ? 'text-bg/75' : 'text-muted',
+                            ].join(' ')}
+                          >
+                            – {end}
+                          </span>
+                        ) : null}
                       </button>
                     )
                   })}
                 </div>
               )}
 
-              {selectedTime ? (
+              {selectedTime && endPreview ? (
                 <div className="mt-6">
+                  <p className="mb-3 text-sm text-muted">
+                    Specialistul e rezervat{' '}
+                    <span className="text-text">
+                      {selectedTime} – {endPreview}
+                    </span>{' '}
+                    ({formatDurationLabel(totalMins)}).
+                  </p>
                   <Button
                     type="button"
                     className="w-full sm:w-auto"
@@ -181,13 +218,15 @@ export function DateTimeStep({
                         onSelectSlot(selectedDate, slot.time, slot.startsAt)
                     }}
                   >
-                    Continuă cu {selectedTime}
+                    Continuă cu {selectedTime} – {endPreview}
                   </Button>
                 </div>
               ) : null}
             </div>
           ) : (
-            <p className="text-sm text-muted">Selectează o zi pentru a vedea orele.</p>
+            <p className="text-sm text-muted">
+              Selectează o zi pentru a vedea orele.
+            </p>
           )}
         </>
       )}

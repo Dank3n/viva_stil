@@ -1,10 +1,15 @@
 import { useState, type FormEvent } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { slotEndTime } from '../../../booking/availability'
+import {
+  formatDurationLabel,
+  totalDurationMinutes,
+} from '../../../booking/duration'
 import type { Service } from '../../../data/services'
 import { Button } from '../../ui/Button'
 
 type DetailsStepProps = {
-  service: Service
+  services: Service[]
   staffLabel: string
   date: string
   time: string
@@ -26,7 +31,7 @@ function formatDateRo(dateStr: string) {
 }
 
 export function DetailsStep({
-  service,
+  services: selectedServices,
   staffLabel,
   date,
   time,
@@ -37,6 +42,10 @@ export function DetailsStep({
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
+
+  const serviceIds = selectedServices.map((s) => s.id)
+  const totalMins = totalDurationMinutes(serviceIds)
+  const endTime = slotEndTime(time, serviceIds)
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -85,8 +94,17 @@ export function DetailsStep({
         </p>
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between gap-4">
-            <dt className="text-muted">Serviciu</dt>
-            <dd className="text-right text-text">{service.name}</dd>
+            <dt className="text-muted shrink-0">Servicii</dt>
+            <dd className="text-right text-text">
+              <ul className="space-y-1">
+                {selectedServices.map((s) => (
+                  <li key={s.id}>
+                    {s.name}
+                    <span className="text-muted"> · {s.duration}</span>
+                  </li>
+                ))}
+              </ul>
+            </dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt className="text-muted">Specialist</dt>
@@ -99,14 +117,15 @@ export function DetailsStep({
             </dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-muted">Ora</dt>
-            <dd className="text-right text-text">{time}</dd>
+            <dt className="text-muted">Interval</dt>
+            <dd className="text-right text-text">
+              {time} – {endTime}
+            </dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-muted">Durată / preț</dt>
+            <dt className="text-muted">Durată totală</dt>
             <dd className="text-right text-champagne-soft">
-              {service.duration}
-              {service.price ? ` · ${service.price}` : ''}
+              {formatDurationLabel(totalMins)}
             </dd>
           </div>
         </dl>

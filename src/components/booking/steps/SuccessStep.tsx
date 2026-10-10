@@ -1,13 +1,21 @@
 import { Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import type { Appointment } from '../../../booking/types'
+import { slotEndTime } from '../../../booking/availability'
+import {
+  formatDurationLabel,
+  totalDurationMinutes,
+} from '../../../booking/duration'
+import {
+  getAppointmentServiceIds,
+  type Appointment,
+} from '../../../booking/types'
 import type { Service } from '../../../data/services'
 import { businessInfo } from '../../../config/business'
 import { Button } from '../../ui/Button'
 
 type SuccessStepProps = {
   appointment: Appointment
-  service: Service
+  services: Service[]
   staffName: string
   onRestart: () => void
 }
@@ -23,10 +31,14 @@ function formatDateRo(dateStr: string) {
 
 export function SuccessStep({
   appointment,
-  service,
+  services: selectedServices,
   staffName,
   onRestart,
 }: SuccessStepProps) {
+  const serviceIds = getAppointmentServiceIds(appointment)
+  const endTime = slotEndTime(appointment.time, serviceIds)
+  const totalMins = totalDurationMinutes(serviceIds)
+
   return (
     <div className="mx-auto max-w-lg text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-champagne/20 text-champagne">
@@ -43,8 +55,14 @@ export function SuccessStep({
 
       <dl className="mt-8 space-y-3 border border-line bg-elevated/40 p-5 text-left text-sm">
         <div className="flex justify-between gap-4">
-          <dt className="text-muted">Serviciu</dt>
-          <dd className="text-right text-text">{service.name}</dd>
+          <dt className="text-muted shrink-0">Servicii</dt>
+          <dd className="text-right text-text">
+            <ul className="space-y-1">
+              {selectedServices.map((s) => (
+                <li key={s.id}>{s.name}</li>
+              ))}
+            </ul>
+          </dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted">Specialist</dt>
@@ -57,8 +75,13 @@ export function SuccessStep({
           </dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-muted">Ora</dt>
-          <dd className="text-right text-text">{appointment.time}</dd>
+          <dt className="text-muted">Interval</dt>
+          <dd className="text-right text-text">
+            {appointment.time} – {endTime}
+            <span className="mt-0.5 block text-xs text-muted">
+              {formatDurationLabel(totalMins)}
+            </span>
+          </dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted">Telefon</dt>
@@ -89,7 +112,10 @@ export function SuccessStep({
           {businessInfo.phone}
         </a>
         {' · '}
-        <Link to="/contact" className="text-champagne-soft underline-offset-2 hover:underline">
+        <Link
+          to="/contact"
+          className="text-champagne-soft underline-offset-2 hover:underline"
+        >
           Contact
         </Link>
       </p>

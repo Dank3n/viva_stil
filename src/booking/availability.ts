@@ -1,14 +1,21 @@
 /**
  * Generare sloturi disponibile.
- * În producție: GET /api/availability?serviceId=&staffId=&date=
+ * Durata blocată = suma serviciilor selectate.
+ * În producție: GET /api/availability?serviceIds=&staffId=&date=
  */
 
-import { parseDurationMinutes } from './duration'
+import {
+  addMinutesToTime,
+  totalDurationMinutes,
+} from './duration'
 import { getHoursForDate } from './workingHours'
 import { getAppointmentsForDay } from './store'
-import { ANY_STAFF_ID, type TimeSlot } from './types'
-import { services } from '../data/services'
-import { specialistsForService } from '../data/specialists'
+import {
+  ANY_STAFF_ID,
+  getAppointmentServiceIds,
+  type TimeSlot,
+} from './types'
+import { specialistsForServices } from '../data/specialists'
 
 const SLOT_STEP_MINUTES = 30
 
@@ -46,9 +53,8 @@ function staffBusyRanges(
 ): Array<{ start: number; end: number }> {
   return getAppointmentsForDay(date, staffId).map((a) => {
     const start = parseHm(a.time)
-    const svc = services.find((s) => s.id === a.serviceId)
-    const dur = parseDurationMinutes(svc?.duration ?? '30 min')
-    return { start, end: start + dur }
+    const dur = totalDurationMinutes(getAppointmentServiceIds(a))
+    return { start, end: start + (dur || 30) }
   })
 }
 
@@ -77,12 +83,12 @@ function slotsForStaff(
 }
 
 export function getAvailableSlots(
-  serviceId: string,
+  serviceIds: string[],
   staffId: string,
   date: string,
 ): TimeSlot[] {
-  const service = services.find((s) => s.id === serviceId)
-  if (!service) return []
+  const durationMin = totalDurationMinutes(serviceIds)
+  if (!serviceIds.length || durationMin <= 0) return []
 
   const [y, mo, d] = date.split('-').map(Number)
   const dateObj = new Date(y, mo - 1, d)
@@ -91,10 +97,9 @@ export function getAvailableSlots(
 
   const dayStart = parseHm(hours.start)
   const dayEnd = parseHm(hours.end)
-  const durationMin = parseDurationMinutes(service.duration)
 
   if (staffId === ANY_STAFF_ID) {
-    const team = specialistsForService(serviceId)
+    const team = specialistsForServices(serviceIds)
     if (team.length === 0) return []
 
     const byTime = new Map<string, TimeSlot>()
@@ -124,7 +129,7 @@ export function getAvailableSlots(
 
 /** Zile disponibile în următoarele N zile (are măcar un slot liber). */
 export function getAvailableDates(
-  serviceId: string,
+  serviceIds: string[],
   staffId: string,
   daysAhead = 21,
 ): string[] {
@@ -139,7 +144,7 @@ export function getAvailableDates(
     const m = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
     const dateStr = `${y}-${m}-${day}`
-    const slots = getAvailableSlots(serviceId, staffId, dateStr)
+    const slots = getAvailableSlots(serviceIds, staffId, dateStr)
     if (slots.some((s) => s.available)) out.push(dateStr)
   }
   return out
@@ -147,16 +152,20 @@ export function getAvailableDates(
 
 /** Alocă un specialist liber pentru slot când user a ales „Oricare”. */
 export function resolveStaffForSlot(
-  serviceId: string,
+  serviceIds: string[],
   staffId: string,
   date: string,
   time: string,
 ): string {
   if (staffId !== ANY_STAFF_ID) return staffId
-  const team = specialistsForService(serviceId)
+  const team = specialistsForServices(serviceIds)
   for (const member of team) {
-    const slots = getAvailableSlots(serviceId, member.id, date)
+    const slots = getAvailableSlots(serviceIds, member.id, date)
     if (slots.some((s) => s.time === time && s.available)) return member.id
   }
   return team[0]?.id ?? staffId
+}
+
+export function slotEndTime(startTime: string, serviceIds: string[]): string {
+  return addMinutesToTime(startTime, totalDurationMinutes(serviceIds))
 }

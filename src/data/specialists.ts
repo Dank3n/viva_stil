@@ -64,10 +64,21 @@ export const specialists: Specialist[] = [
 ]
 
 export function specialistsForService(serviceId: string): Specialist[] {
-  const service = services.find((s) => s.id === serviceId)
-  if (!service) return []
+  return specialistsForServices([serviceId])
+}
+
+/** Specialiști care pot acoperi TOATE serviciile selectate. */
+export function specialistsForServices(serviceIds: string[]): Specialist[] {
+  if (!serviceIds.length) return []
+  const selected = serviceIds
+    .map((id) => services.find((s) => s.id === id))
+    .filter(Boolean) as Array<{ category: string }>
+  if (selected.length !== serviceIds.length) return []
+
   return specialists.filter((s) =>
-    s.categoryIds.includes(service.category as ServiceCategory),
+    selected.every((svc) =>
+      s.categoryIds.includes(svc.category as ServiceCategory),
+    ),
   )
 }
 
