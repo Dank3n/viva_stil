@@ -39,7 +39,7 @@ export function BookingSection({ compact = false }: BookingSectionProps) {
               </FadeIn>
 
               <FadeIn delay={0.1} className="mt-8 flex flex-wrap gap-3">
-                <Button to="/programari" size="lg">
+                <Button to="/programari" size="lg" data-booking-cta="">
                   Deschide programările
                   <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden />
                 </Button>

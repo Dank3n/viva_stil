@@ -13,6 +13,7 @@ export type BusinessInfo = {
   city: string
   instagram: string
   instagramUrl: string
+  facebookUrl: string
   schedule: ScheduleItem[]
   seo: {
     title: string
@@ -30,10 +31,10 @@ export const businessInfo: BusinessInfo = {
   city: 'București 030984',
   instagram: '@vivastil.22',
   instagramUrl: 'https://www.instagram.com/vivastil.22/',
+  facebookUrl: 'https://www.facebook.com/p/Viva-Stil-61568738710599/',
   schedule: [
-    { days: 'Luni – Joi', hours: '08:00 – 22:00' },
-    { days: 'Vineri', hours: '08:00 – 19:00' },
-    { days: 'Sâmbătă', hours: '08:00 – 22:00' },
+    { days: 'Luni – Vineri', hours: '08:00 – 22:00' },
+    { days: 'Sâmbătă', hours: '08:00 – 19:00' },
     { days: 'Duminică', hours: 'Închis' },
   ],
   seo: {

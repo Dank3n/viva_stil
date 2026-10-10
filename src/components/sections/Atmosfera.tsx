@@ -1,5 +1,6 @@
 import { galleryImages } from '../../data/gallery'
 import { FadeIn } from '../ui/Motion'
+import { useImageLightbox } from '../ui/ImageLightbox'
 
 const panels = [
   { image: galleryImages[0], alt: 'Fațadă Viva Stil' },
@@ -8,6 +9,12 @@ const panels = [
 ]
 
 export function Atmosfera() {
+  const { open } = useImageLightbox()
+  const lightboxItems = panels.map((p) => ({
+    src: p.image.src,
+    alt: p.alt,
+  }))
+
   return (
     <section
       className="relative overflow-hidden bg-bg py-20 sm:py-24"
@@ -46,10 +53,13 @@ export function Atmosfera() {
             </div>
 
             <div className="flex h-[500px] flex-col gap-2 lg:h-full lg:w-2/3 lg:flex-row">
-              {panels.map((panel) => (
-                <article
+              {panels.map((panel, index) => (
+                <button
                   key={panel.image.id}
-                  className="group relative flex-1 cursor-pointer overflow-hidden rounded-xl transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] hover:flex-[3]"
+                  type="button"
+                  onClick={() => open(lightboxItems, index)}
+                  aria-label={`Mărește imaginea: ${panel.alt}`}
+                  className="group relative flex-1 cursor-pointer overflow-hidden rounded-xl transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] hover:flex-[3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-champagne"
                 >
                   <img
                     src={panel.image.src}
@@ -64,7 +74,7 @@ export function Atmosfera() {
                       Viva View
                     </span>
                   </div>
-                </article>
+                </button>
               ))}
             </div>
           </div>

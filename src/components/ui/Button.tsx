@@ -46,6 +46,7 @@ type ButtonAsLink = CommonProps & {
   target?: string
   rel?: string
   onClick?: () => void
+  [dataAttr: `data-${string}`]: string | undefined
 }
 
 type ButtonProps = ButtonAsButton | ButtonAsAnchor | ButtonAsLink
@@ -71,9 +72,10 @@ export function Button(props: ButtonProps) {
   const cls = classes(variant, size, className)
 
   if ('to' in props && props.to) {
-    const { to, onClick } = props
+    const { to, onClick, children: _c, variant: _v, size: _s, className: _cl, href: _h, ...rest } =
+      props
     return (
-      <Link to={to} className={cls} onClick={onClick}>
+      <Link to={to} className={cls} onClick={onClick} {...rest}>
         {children}
       </Link>
     )

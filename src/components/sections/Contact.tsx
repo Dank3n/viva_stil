@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { businessInfo } from '../../config/business'
 import { FadeIn, Stagger, StaggerItem } from '../ui/Motion'
 import { SectionHeading } from '../ui/SectionHeading'
+import { SocialLinks } from '../ui/SocialLinks'
 
 function Field({
   label,
@@ -83,12 +84,12 @@ export function Contact() {
                   href={businessInfo.phone ? `tel:${businessInfo.phone.replace(/\s+/g, '')}` : undefined}
                   emptyHint="Numărul de telefon va fi afișat aici."
                 />
-                <Field
-                  label="Instagram"
-                  value={businessInfo.instagram}
-                  href={businessInfo.instagramUrl || undefined}
-                  emptyHint="Profilul de Instagram va fi afișat aici."
-                />
+                <div>
+                  <p className="text-[0.65rem] font-medium uppercase tracking-[0.2em] text-taupe">
+                    Social
+                  </p>
+                  <SocialLinks className="mt-3" />
+                </div>
               </div>
             </article>
           </StaggerItem>
@@ -112,6 +113,7 @@ export function Contact() {
                 )}
                 <Link
                   to="/programari"
+                  data-booking-cta=""
                   className="inline-flex items-center gap-2 pt-2 text-sm font-medium text-ink transition-colors hover:text-champagne"
                 >
                   Programează-te online

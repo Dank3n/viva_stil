@@ -1,6 +1,7 @@
 import { aboutValues } from '../../data/content'
 import { aboutImage } from '../../data/gallery'
 import { FadeIn, Stagger, StaggerItem } from '../ui/Motion'
+import { ZoomableImage } from '../ui/ImageLightbox'
 import { SectionHeading } from '../ui/SectionHeading'
 
 export function About() {
@@ -8,14 +9,12 @@ export function About() {
     <section id="despre" className="bg-ivory py-24 sm:py-28 lg:py-32" aria-labelledby="despre-title">
       <div className="mx-auto grid max-w-6xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-2 lg:gap-20 lg:px-10">
         <FadeIn className="relative">
-          <div className="overflow-hidden">
-            <img
-              src={aboutImage.src}
-              alt={aboutImage.alt}
-              className="aspect-[4/5] w-full object-cover transition-transform duration-700 hover:scale-[1.03]"
-              loading="lazy"
-            />
-          </div>
+          <ZoomableImage
+            src={aboutImage.src}
+            alt={aboutImage.alt}
+            className="w-full overflow-hidden"
+            imgClassName="aspect-[4/5] w-full object-cover transition-transform duration-700 hover:scale-[1.03]"
+          />
           <div className="pointer-events-none absolute -bottom-6 -right-4 hidden h-40 w-40 border border-champagne/50 sm:block lg:-right-8" aria-hidden />
         </FadeIn>
 

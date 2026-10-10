@@ -1,7 +1,8 @@
-import { useState } from 'react'
 import { galleryImages, type GalleryImage } from '../../data/gallery'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
+import { useScrollColorize } from '../../hooks/useScrollColorize'
 import { FadeIn, Stagger, StaggerItem } from '../ui/Motion'
-import { Lightbox } from '../ui/Lightbox'
+import { useImageLightbox } from '../ui/ImageLightbox'
 import { SectionHeading } from '../ui/SectionHeading'
 
 /** Pe telefon: toate celulele egale (fără goluri). De la md în sus: layout variat. */
@@ -17,8 +18,65 @@ function tileClass(span?: GalleryImage['span']) {
   return `${mobile} md:aspect-[4/5]`
 }
 
+function GalleryTile({
+  image,
+  index,
+  isMobile,
+  onOpen,
+}: {
+  image: GalleryImage
+  index: number
+  isMobile: boolean
+  onOpen: (index: number) => void
+}) {
+  const { ref, active } = useScrollColorize<HTMLButtonElement>(isMobile)
+
+  const colorize = isMobile
+    ? active
+      ? 'grayscale-0 scale-105'
+      : 'grayscale scale-100'
+    : 'grayscale group-hover:scale-110 group-hover:grayscale-0'
+
+  const overlay = isMobile
+    ? active
+      ? 'opacity-0'
+      : 'opacity-60'
+    : 'opacity-60 group-hover:opacity-0'
+
+  return (
+    <StaggerItem className={`min-h-0 ${tileClass(image.span)}`}>
+      <button
+        ref={ref}
+        type="button"
+        className="group relative block h-full w-full overflow-hidden bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-champagne"
+        onClick={() => onOpen(index)}
+        aria-label={`Mărește imaginea: ${image.alt}`}
+      >
+        <img
+          src={image.src}
+          alt={image.alt}
+          loading="lazy"
+          className={[
+            'absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out',
+            colorize,
+          ].join(' ')}
+        />
+        <span
+          className={[
+            'absolute inset-0 bg-black/20 transition-opacity duration-500',
+            overlay,
+          ].join(' ')}
+        />
+      </button>
+    </StaggerItem>
+  )
+}
+
 export function Gallery() {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const { open } = useImageLightbox()
+  const isMobile = useMediaQuery('(max-width: 767px)')
+
+  const lightboxItems = galleryImages.map(({ src, alt }) => ({ src, alt }))
 
   return (
     <section
@@ -39,45 +97,16 @@ export function Gallery() {
 
         <Stagger className="grid auto-rows-fr grid-cols-2 gap-1.5 sm:gap-2 md:grid-cols-3 md:gap-3 md:auto-rows-[minmax(12rem,1fr)] lg:grid-cols-4">
           {galleryImages.map((image, index) => (
-            <StaggerItem key={image.id} className={`min-h-0 ${tileClass(image.span)}`}>
-              <button
-                type="button"
-                className="group relative block h-full w-full overflow-hidden bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-champagne"
-                onClick={() => setActiveIndex(index)}
-                aria-label={`Deschide imaginea: ${image.alt}`}
-              >
-                <img
-                  src={image.src}
-                  alt={image.alt}
-                  loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover grayscale transition-all duration-700 ease-out group-hover:scale-110 group-hover:grayscale-0"
-                />
-                <span className="absolute inset-0 bg-black/20 opacity-60 transition-opacity duration-500 group-hover:opacity-0" />
-                <span className="absolute inset-x-0 bottom-0 translate-y-2 bg-gradient-to-t from-black/70 to-transparent p-3 text-left text-[11px] text-text opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100 sm:p-4 sm:text-sm">
-                  {image.alt}
-                </span>
-              </button>
-            </StaggerItem>
+            <GalleryTile
+              key={image.id}
+              image={image}
+              index={index}
+              isMobile={isMobile}
+              onOpen={(i) => open(lightboxItems, i)}
+            />
           ))}
         </Stagger>
       </div>
-
-      <Lightbox
-        image={activeIndex === null ? null : galleryImages[activeIndex]}
-        onClose={() => setActiveIndex(null)}
-        onPrev={() =>
-          setActiveIndex((current) =>
-            current === null
-              ? current
-              : (current - 1 + galleryImages.length) % galleryImages.length,
-          )
-        }
-        onNext={() =>
-          setActiveIndex((current) =>
-            current === null ? current : (current + 1) % galleryImages.length,
-          )
-        }
-      />
     </section>
   )
 }

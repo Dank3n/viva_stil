@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { businessInfo } from '../../config/business'
 import { navLinks } from '../../data/content'
 import { BrandLogo } from '../ui/BrandLogo'
+import { SocialLinks } from '../ui/SocialLinks'
 
 export function Footer() {
   return (
@@ -14,6 +15,7 @@ export function Footer() {
           <p className="mt-6 max-w-sm font-display text-2xl italic text-champagne-soft">
             {businessInfo.tagline}
           </p>
+          <SocialLinks className="mt-8" />
         </div>
 
         <div className="grid gap-10 sm:grid-cols-2">
@@ -56,18 +58,6 @@ export function Footer() {
                   Programări
                 </Link>
               </li>
-              {businessInfo.instagramUrl ? (
-                <li>
-                  <a
-                    href={businessInfo.instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-muted transition-colors hover:text-text"
-                  >
-                    Instagram
-                  </a>
-                </li>
-              ) : null}
               {businessInfo.phone ? (
                 <li>
                   <a

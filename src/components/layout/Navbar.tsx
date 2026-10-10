@@ -6,6 +6,7 @@ import { navLinks } from '../../data/content'
 import { useScrolled } from '../../hooks/useMotion'
 import { BookCta } from '../ui/BookCta'
 import { BrandLogo } from '../ui/BrandLogo'
+import { SocialLinks } from '../ui/SocialLinks'
 
 export function Navbar() {
   const scrolled = useScrolled(16)
@@ -75,20 +76,24 @@ export function Navbar() {
           })}
         </nav>
 
-        <div className="hidden lg:block">
+        <div className="hidden items-center gap-3 lg:flex">
+          <SocialLinks />
           <BookCta size="md" />
         </div>
 
-        <button
-          type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface/70 text-text lg:hidden"
-          aria-expanded={open}
-          aria-controls={menuId}
-          aria-label={open ? 'Închide meniul' : 'Deschide meniul'}
-          onClick={() => setOpen((value) => !value)}
-        >
-          {open ? <X size={20} strokeWidth={1.5} /> : <Menu size={20} strokeWidth={1.5} />}
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <SocialLinks size="sm" />
+          <button
+            type="button"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface/70 text-text"
+            aria-expanded={open}
+            aria-controls={menuId}
+            aria-label={open ? 'Închide meniul' : 'Deschide meniul'}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {open ? <X size={20} strokeWidth={1.5} /> : <Menu size={20} strokeWidth={1.5} />}
+          </button>
+        </div>
       </div>
 
       <div

@@ -92,5 +92,12 @@ export const aboutImage = {
   alt: 'Fațada Viva Stil',
 }
 
+/** Fundal secțiune Final CTA — Pinterest pin. */
+export const finalCtaImage = {
+  src: '/final-cta.jpg',
+  alt: 'Atmosferă salon — moment de răsfăț',
+  sourceUrl: 'https://ro.pinterest.com/pin/656821926987106229/',
+}
+
 export const mapsUrl =
   'https://www.google.com/maps/place/Viva+Stil/@44.423714,26.1198544,17z/data=!3m1!4b1!4m6!3m5!1s0x40b1ff1fbd0fe4d9:0xdcfaaacdda79d738!8m2!3d44.423714!4d26.1198544!16s%2Fg%2F11d_v9rgt9'
