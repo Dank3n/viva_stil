@@ -16,7 +16,7 @@ export function BrandStatement() {
             Mai mult decât frumusețe. O experiență.
           </h2>
           <p className="mt-8 text-base leading-relaxed text-taupe sm:text-lg">
-            La Brizo Beauty Studio, fiecare detaliu este gândit pentru tine.
+            La Viva Stil, fiecare detaliu este gândit pentru tine.
             Credem într-o frumusețe care începe cu starea de bine, continuă cu
             grijă și se vede în încrederea cu care pleci de la noi.
           </p>

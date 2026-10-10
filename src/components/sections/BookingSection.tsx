@@ -1,5 +1,4 @@
 import { ArrowUpRight } from 'lucide-react'
-import { businessInfo } from '../../config/business'
 import { Button } from '../ui/Button'
 import { FadeIn } from '../ui/Motion'
 import { SectionHeading } from '../ui/SectionHeading'
@@ -20,7 +19,7 @@ export function BookingSection({ compact = false }: BookingSectionProps) {
           <SectionHeading
             eyebrow="Programări"
             title="Rezervă-ți momentul pentru tine."
-            subtitle="Programează-te prin MERO — cu servicii, specialiști și disponibilitate live."
+            subtitle="Alege serviciul, specialistul și ora — tot fluxul de rezervare e pe site."
             className="mb-12"
           />
         </FadeIn>
@@ -30,12 +29,12 @@ export function BookingSection({ compact = false }: BookingSectionProps) {
             <div className="p-8 sm:p-10 lg:p-12">
               <FadeIn>
                 <p className="text-sm uppercase tracking-[0.2em] text-champagne">
-                  Integrare MERO
+                  Online, în câțiva pași
                 </p>
                 <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
-                  Pe pagina de programări găsești profilul Brizo Beauty Studio pe
-                  MERO, încorporat direct pe site. Alegi serviciul, specialistul
-                  și ora — confirmarea rămâne pe platforma oficială.
+                  Selectezi serviciul, specialistul și intervalul liber, apoi
+                  confirmi cu datele tale de contact. Simplu, rapid, pe mobil
+                  sau desktop.
                 </p>
               </FadeIn>
 
@@ -44,15 +43,6 @@ export function BookingSection({ compact = false }: BookingSectionProps) {
                   Deschide programările
                   <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden />
                 </Button>
-                <Button
-                  href={businessInfo.meroUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="secondary"
-                  size="lg"
-                >
-                  MERO ↗
-                </Button>
               </FadeIn>
             </div>
 
@@ -60,10 +50,10 @@ export function BookingSection({ compact = false }: BookingSectionProps) {
               <div className="editorial-grid absolute inset-0 opacity-20" aria-hidden />
               <div className="relative">
                 <p className="font-display text-3xl leading-snug text-text text-balance sm:text-4xl">
-                  Programare live, direct din experiența Brizo.
+                  Programare clară, fără aplicații externe.
                 </p>
                 <p className="mt-4 text-sm text-muted">
-                  Disponibilitate și confirmare sincronizate pe MERO.
+                  Vezi disponibilitatea și confirmă direct pe site.
                 </p>
               </div>
             </div>

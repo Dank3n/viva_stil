@@ -19,7 +19,7 @@ export const testimonials: Testimonial[] = [
   {
     id: 'placeholder-2',
     name: 'Nume clientă',
-    text: 'Spațiu rezervat pentru o a doua recenzie. Poți copia citate din Google, Instagram sau MERO.',
+    text: 'Spațiu rezervat pentru o a doua recenzie. Poți copia citate din Google sau Instagram.',
     rating: 5,
   },
   {

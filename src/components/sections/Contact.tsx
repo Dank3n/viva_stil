@@ -1,4 +1,5 @@
 import { ArrowUpRight, Clock, MapPin, Phone } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { businessInfo } from '../../config/business'
 import { FadeIn, Stagger, StaggerItem } from '../ui/Motion'
 import { SectionHeading } from '../ui/SectionHeading'
@@ -95,7 +96,7 @@ export function Contact() {
           <StaggerItem>
             <article className="h-full border border-line bg-surface/90 p-7 md:col-span-2 xl:col-span-1">
               <Clock className="text-champagne" size={22} strokeWidth={1.4} aria-hidden />
-              <h3 className="mt-5 font-display text-2xl text-ink">Program & MERO</h3>
+              <h3 className="mt-5 font-display text-2xl text-ink">Program</h3>
               <div className="mt-4 space-y-4">
                 {scheduleFilled ? (
                   businessInfo.schedule.map((item) => (
@@ -109,15 +110,13 @@ export function Contact() {
                     Programul de lucru va fi afișat aici.
                   </p>
                 )}
-                <a
-                  href={businessInfo.meroUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to="/programari"
                   className="inline-flex items-center gap-2 pt-2 text-sm font-medium text-ink transition-colors hover:text-champagne"
                 >
-                  Programează pe MERO
+                  Programează-te online
                   <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden />
-                </a>
+                </Link>
               </div>
             </article>
           </StaggerItem>

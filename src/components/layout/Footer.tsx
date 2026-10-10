@@ -1,19 +1,15 @@
 import { Link } from 'react-router-dom'
 import { businessInfo } from '../../config/business'
 import { navLinks } from '../../data/content'
+import { BrandLogo } from '../ui/BrandLogo'
 
 export function Footer() {
   return (
     <footer className="border-t border-line bg-elevated text-text">
       <div className="mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[1.2fr_1fr] lg:px-10 lg:py-20">
         <div>
-          <Link to="/" className="inline-flex flex-col leading-none">
-            <span className="font-display text-3xl tracking-[0.16em]">
-              {businessInfo.shortName}
-            </span>
-            <span className="mt-2 text-[0.65rem] uppercase tracking-[0.3em] text-champagne-soft">
-              Beauty Studio
-            </span>
+          <Link to="/" className="inline-flex items-center">
+            <BrandLogo heightClassName="h-16 sm:h-20" />
           </Link>
           <p className="mt-6 max-w-sm font-display text-2xl italic text-champagne-soft">
             {businessInfo.tagline}
@@ -53,14 +49,12 @@ export function Footer() {
             </p>
             <ul className="mt-4 space-y-3">
               <li>
-                <a
-                  href={businessInfo.meroUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to="/programari"
                   className="text-sm text-muted transition-colors hover:text-text"
                 >
-                  MERO
-                </a>
+                  Programări
+                </Link>
               </li>
               {businessInfo.instagramUrl ? (
                 <li>

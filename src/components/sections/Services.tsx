@@ -1,6 +1,6 @@
 import { Clock } from 'lucide-react'
 import { useState } from 'react'
-import { meroServiceIds, servicesByCategory } from '../../data/services'
+import { servicesByCategory } from '../../data/services'
 import { BookCta } from '../ui/BookCta'
 import { FadeIn, Stagger, StaggerItem } from '../ui/Motion'
 import { SectionHeading } from '../ui/SectionHeading'
@@ -21,7 +21,7 @@ export function Services() {
           <SectionHeading
             as="h1"
             title="Serviciile noastre"
-            subtitle="Alege o categorie, apoi programează-te — pe MERO ajungi direct la serviciul ales."
+            subtitle="Alege o categorie, apoi programează-te — ajungi direct la rezervare cu serviciul selectat."
             className="mb-10"
           />
         </FadeIn>
@@ -100,7 +100,7 @@ export function Services() {
                           {service.price}
                         </span>
                       ) : (
-                        <span>Detalii pe MERO</span>
+                        <span>La cerere</span>
                       )}
                     </div>
 
@@ -110,8 +110,6 @@ export function Services() {
                         className="cta-highlight w-full font-semibold tracking-[0.06em]"
                         label="Programează-te"
                         serviceId={service.id}
-                        meroServiceId={meroServiceIds[service.id]}
-                        external
                       />
                     </div>
                   </article>

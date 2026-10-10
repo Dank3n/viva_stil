@@ -5,6 +5,7 @@ import { businessInfo } from '../../config/business'
 import { navLinks } from '../../data/content'
 import { useScrolled } from '../../hooks/useMotion'
 import { BookCta } from '../ui/BookCta'
+import { BrandLogo } from '../ui/BrandLogo'
 
 export function Navbar() {
   const scrolled = useScrolled(16)
@@ -41,16 +42,14 @@ export function Navbar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8 lg:px-10">
         <Link
           to="/"
-          className="group flex flex-col leading-none"
+          className="group inline-flex items-center"
           aria-label={`${businessInfo.name} — acasă`}
           onClick={() => setOpen(false)}
         >
-          <span className="font-display text-2xl font-medium tracking-[0.18em] text-text transition-colors group-hover:text-champagne-soft">
-            {businessInfo.shortName}
-          </span>
-          <span className="mt-1 text-[0.62rem] font-medium uppercase tracking-[0.32em] text-muted">
-            Beauty Studio
-          </span>
+          <BrandLogo
+            heightClassName="h-14 sm:h-16"
+            className="transition-opacity group-hover:opacity-90"
+          />
         </Link>
 
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Navigare principală">

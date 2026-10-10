@@ -31,10 +31,10 @@ export const bookingBenefits = [
   },
   {
     title: 'Disponibilitate actualizată',
-    description: 'Vezi intervalele libere direct pe profilul MERO.',
+    description: 'Vezi intervalele libere pentru specialistul ales.',
   },
   {
-    title: 'Confirmare prin MERO',
-    description: 'Primești confirmarea și detaliile programării în aplicație.',
+    title: 'Confirmare imediată',
+    description: 'Primești sumarul programării direct pe site.',
   },
 ] as const

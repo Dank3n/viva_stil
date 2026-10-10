@@ -2,9 +2,9 @@ import { galleryImages } from '../../data/gallery'
 import { FadeIn } from '../ui/Motion'
 
 const panels = [
-  { image: galleryImages[0], alt: 'Interior Brizo Beauty Studio' },
-  { image: galleryImages[2], alt: 'Spațiu de lucru Brizo' },
-  { image: galleryImages[7], alt: 'Atmosferă premium Brizo' },
+  { image: galleryImages[0], alt: 'Fațadă Viva Stil' },
+  { image: galleryImages[2], alt: 'Look final Viva Stil' },
+  { image: galleryImages[3], alt: 'Exterior Viva Stil seara' },
 ]
 
 export function Atmosfera() {
@@ -31,7 +31,7 @@ export function Atmosfera() {
               >
                 Atmosfera
                 <br />
-                <span className="text-champagne">Brizo</span>
+                <span className="text-champagne">Viva</span>
               </h2>
               <div className="my-8 h-1 w-16 bg-champagne" />
               <h3 className="mb-4 text-lg font-semibold uppercase tracking-wide text-text-soft sm:text-xl">
@@ -61,7 +61,7 @@ export function Atmosfera() {
                   <div className="pointer-events-none absolute inset-0 rounded-xl border-2 border-champagne opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                   <div className="absolute bottom-6 left-6 translate-y-4 opacity-0 transition-all duration-500 delay-100 group-hover:translate-y-0 group-hover:opacity-100">
                     <span className="rounded-sm bg-champagne px-3 py-1 text-xs font-bold uppercase tracking-widest text-bg">
-                      Brizo View
+                      Viva View
                     </span>
                   </div>
                 </article>

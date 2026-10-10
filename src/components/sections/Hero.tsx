@@ -1,10 +1,63 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { heroImage, heroVideo } from '../../data/gallery'
+import { useEffect, useRef, useState } from 'react'
+import { businessInfo } from '../../config/business'
+import { heroImage, heroVideos } from '../../data/gallery'
 import { BookCta } from '../ui/BookCta'
+import { BrandLogo } from '../ui/BrandLogo'
 import { Button } from '../ui/Button'
+
+const FADE_MS = 1400
 
 export function Hero() {
   const reduce = useReducedMotion()
+  const [active, setActive] = useState(0)
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const switching = useRef(false)
+
+  useEffect(() => {
+    if (reduce) return
+
+    const current = videoRefs.current[active]
+    if (!current) return
+
+    const playSafe = (el: HTMLVideoElement | null) => {
+      if (!el) return
+      const p = el.play()
+      if (p && typeof p.catch === 'function') p.catch(() => {})
+    }
+
+    playSafe(current)
+
+    const onTimeUpdate = () => {
+      if (switching.current) return
+      const duration = current.duration
+      if (!Number.isFinite(duration) || duration <= 0) return
+
+      const remaining = duration - current.currentTime
+      if (remaining > FADE_MS / 1000 + 0.05) return
+
+      switching.current = true
+      const next = (active + 1) % heroVideos.length
+      const nextEl = videoRefs.current[next]
+      if (nextEl) {
+        nextEl.currentTime = 0
+        playSafe(nextEl)
+      }
+      setActive(next)
+
+      window.setTimeout(() => {
+        const prev = videoRefs.current[active]
+        if (prev) {
+          prev.pause()
+          prev.currentTime = 0
+        }
+        switching.current = false
+      }, FADE_MS + 80)
+    }
+
+    current.addEventListener('timeupdate', onTimeUpdate)
+    return () => current.removeEventListener('timeupdate', onTimeUpdate)
+  }, [active, reduce])
 
   return (
     <section
@@ -15,26 +68,40 @@ export function Hero() {
       <div className="absolute inset-0">
         {reduce ? (
           <img
-            src={heroVideo.poster || heroImage.src}
+            src={heroVideos[0].poster || heroImage.src}
             alt={heroImage.alt}
             className="h-full w-full object-cover object-center"
           />
         ) : (
-          <motion.video
-            className="h-full w-full object-cover object-center"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            poster={heroVideo.poster}
-            aria-label={heroImage.alt}
-            initial={{ scale: 1.06, opacity: 0.65 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <source src={heroVideo.src} type="video/mp4" />
-          </motion.video>
+          <>
+            {heroVideos.map((clip, index) => (
+              <video
+                key={clip.src}
+                ref={(el) => {
+                  videoRefs.current[index] = el
+                }}
+                className="absolute inset-0 h-full w-full object-cover object-center transition-opacity ease-in-out"
+                style={{
+                  opacity: active === index ? 1 : 0,
+                  transitionDuration: `${FADE_MS}ms`,
+                }}
+                muted
+                playsInline
+                preload="auto"
+                poster={clip.poster}
+                aria-hidden={active !== index}
+                aria-label={active === index ? heroImage.alt : undefined}
+              >
+                <source src={clip.src} type="video/mp4" />
+              </video>
+            ))}
+            <motion.div
+              className="pointer-events-none absolute inset-0"
+              initial={{ opacity: 0.35 }}
+              animate={{ opacity: 0 }}
+              transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+            />
+          </>
         )}
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/30" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/35" />
@@ -42,14 +109,14 @@ export function Hero() {
 
       <div className="relative mx-auto flex min-h-[100svh] max-w-6xl items-center px-5 pb-28 pt-32 sm:px-8 sm:pb-28 lg:px-10 lg:pb-24 lg:pt-28">
         <div className="max-w-xl text-text">
-          <motion.p
-            className="mb-5 text-[0.7rem] font-medium uppercase tracking-[0.3em] text-champagne-soft"
+          <motion.div
+            className="mb-6"
             initial={reduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.15 }}
           >
-            Brizo Beauty Studio
-          </motion.p>
+            <BrandLogo heightClassName="h-36 sm:h-44 lg:h-56" />
+          </motion.div>
 
           <motion.h1
             id="hero-title"
@@ -67,7 +134,7 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.75, delay: 0.4 }}
           >
-            Descoperă experiența Brizo Beauty Studio — un spațiu dedicat
+            Descoperă experiența {businessInfo.name} — un spațiu dedicat
             frumuseții, îngrijirii și stării tale de bine.
           </motion.p>
 

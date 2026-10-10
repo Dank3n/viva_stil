@@ -29,7 +29,7 @@ export function About() {
           <FadeIn delay={0.1}>
             <p className="max-w-lg text-base leading-relaxed text-taupe">
               Intră într-un spațiu calm, aerisit și elegant — gândit să te
-              încetinească și să te reconecteze cu tine. La Brizo, frumusețea
+              încetinească și să te reconecteze cu tine. La Viva Stil, frumusețea
               nu e o cursă, ci un ritual blând.
             </p>
           </FadeIn>

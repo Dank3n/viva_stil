@@ -116,12 +116,11 @@ export function PhoneReels() {
               id="reels-title"
               className="mb-8 font-display text-5xl leading-[0.9] tracking-tight text-text md:text-7xl lg:text-8xl"
             >
-              Brizo <span className="font-light italic text-muted">In</span>{' '}
+              Viva <span className="font-light italic text-muted">In</span>{' '}
               Motion
             </h2>
             <p className="mx-auto max-w-2xl text-xs font-light uppercase leading-[2.2] tracking-[0.35em] text-muted md:text-sm">
-              Videoclipuri din studio, prezentate în chenar de telefon — ca pe
-              un ecran mobil.
+              Reels de pe Instagram (@vivastil.22), în chenar de telefon.
             </p>
           </div>
         </FadeIn>
