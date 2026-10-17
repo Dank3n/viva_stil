@@ -7,14 +7,16 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  completeEmailPasswordReset,
+  findAccountHint,
   getSessionUser,
   loginUser,
   logoutUser,
-  resendRegistrationCode,
-  startRegistration,
-  verifyRegistration,
+  registerUser,
+  resetPasswordWithRecovery,
+  startEmailPasswordReset,
 } from './authStore'
-import type { PublicUser, RegisterStartResult, VerifyChannel } from './types'
+import type { PasswordResetChallenge, PublicUser } from './types'
 
 type AuthContextValue = {
   user: PublicUser | null
@@ -22,20 +24,18 @@ type AuthContextValue = {
     phone: string,
     password: string,
   ) => { ok: true } | { ok: false; error: string }
-  startRegister: (input: {
+  register: (input: {
     name: string
     phone: string
     email: string
     password: string
-    channel: VerifyChannel
-  }) => { ok: true; result: RegisterStartResult } | { ok: false; error: string }
-  verifyRegister: (
-    challengeId: string,
-    code: string,
-  ) => { ok: true } | { ok: false; error: string }
-  resendRegisterCode: (
-    challengeId: string,
-  ) => { ok: true; result: RegisterStartResult } | { ok: false; error: string }
+  }) =>
+    | { ok: true; recoveryCode: string }
+    | { ok: false; error: string }
+  lookupAccount: typeof findAccountHint
+  startEmailReset: typeof startEmailPasswordReset
+  completeEmailReset: typeof completeEmailPasswordReset
+  resetWithRecovery: typeof resetPasswordWithRecovery
   logout: () => void
   refresh: () => void
 }
@@ -56,29 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { ok: true as const }
   }, [])
 
-  const startRegister = useCallback(
+  const register = useCallback(
     (input: {
       name: string
       phone: string
       email: string
       password: string
-      channel: VerifyChannel
-    }) => startRegistration(input),
-    [],
-  )
-
-  const verifyRegister = useCallback(
-    (challengeId: string, code: string) => {
-      const result = verifyRegistration(challengeId, code)
+    }) => {
+      const result = registerUser(input)
       if (!result.ok) return result
       setUser(result.user)
-      return { ok: true as const }
+      return { ok: true as const, recoveryCode: result.recoveryCode }
     },
-    [],
-  )
-
-  const resendRegisterCode = useCallback(
-    (challengeId: string) => resendRegistrationCode(challengeId),
     [],
   )
 
@@ -91,21 +80,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       login,
-      startRegister,
-      verifyRegister,
-      resendRegisterCode,
+      register,
+      lookupAccount: findAccountHint,
+      startEmailReset: startEmailPasswordReset,
+      completeEmailReset: completeEmailPasswordReset,
+      resetWithRecovery: resetPasswordWithRecovery,
       logout,
       refresh,
     }),
-    [
-      user,
-      login,
-      startRegister,
-      verifyRegister,
-      resendRegisterCode,
-      logout,
-      refresh,
-    ],
+    [user, login, register, logout, refresh],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -116,3 +99,5 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
 }
+
+export type { PasswordResetChallenge }

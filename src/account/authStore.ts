@@ -1,32 +1,51 @@
 /**
- * Auth mock (localStorage) + OTP la înregistrare.
- * Înlocuiește cu API real când ai backend.
+ * Auth mock (localStorage) + reset parolă.
+ * Verificare: cod recuperare (local) sau OTP email (EmailJS / local).
  */
 
-import {
-  createOtpChallenge,
-  getOtpTtlSec,
-  maskDestination,
-  resendOtpChallenge,
-  verifyOtpChallenge,
-} from './otp'
-import type {
-  PublicUser,
-  RegisterStartResult,
-  User,
-  VerifyChannel,
-} from './types'
+import { isEmailJsConfigured, sendOtpEmail } from './notify'
 import { normalizePhone, phonesMatch } from './phone'
+import {
+  createResetChallenge,
+  generateOtp,
+  getResetChallenge,
+  verifyResetChallenge,
+} from './resetStore'
+import type {
+  PasswordResetChallenge,
+  PublicUser,
+  ResetMethod,
+  User,
+} from './types'
 
-const USERS_KEY = 'viva-stil-users-v2'
+const USERS_KEY = 'viva-stil-users-v3'
 const SESSION_KEY = 'viva-stil-session'
 
-function hashPassword(password: string): string {
+function hashSecret(value: string): string {
   try {
-    return btoa(`viva:${password}`)
+    return btoa(`viva:${value}`)
   } catch {
-    return `viva:${password}`
+    return `viva:${value}`
   }
+}
+
+function hashRecoveryCode(code: string): string {
+  return hashSecret(code.trim().toUpperCase())
+}
+
+function hashPassword(password: string): string {
+  return hashSecret(password)
+}
+
+export function generateRecoveryCode(): string {
+  const part = () => Math.random().toString(36).slice(2, 6).toUpperCase()
+  return `${part()}-${part()}-${part()}`
+}
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@')
+  if (!domain) return '***'
+  return `${local[0] ?? '*'}***@${domain}`
 }
 
 function loadUsers(): User[] {
@@ -39,17 +58,24 @@ function loadUsers(): User[] {
   }
 }
 
-function normalizeUser(u: User): User {
+function normalizeUser(u: User & Record<string, unknown>): User {
   return {
-    ...u,
-    phoneVerified: u.phoneVerified ?? true,
-    emailVerified: u.emailVerified ?? Boolean(u.email),
+    id: u.id,
+    name: u.name,
+    phone: u.phone,
+    email: u.email ?? '',
+    passwordHash: u.passwordHash,
+    recoveryCodeHash:
+      typeof u.recoveryCodeHash === 'string' && u.recoveryCodeHash
+        ? u.recoveryCodeHash
+        : hashRecoveryCode('VIVA-DEMO-RECOVERY'),
+    createdAt: u.createdAt,
   }
 }
 
-function saveUsers(users: User[]) {
+function saveUsers(list: User[]) {
   try {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users))
+    localStorage.setItem(USERS_KEY, JSON.stringify(list))
   } catch {
     /* ignore */
   }
@@ -62,8 +88,7 @@ function seedUsers(): User[] {
     phone: normalizePhone('0723 111 222'),
     email: 'ana@exemplu.ro',
     passwordHash: hashPassword('demo123'),
-    phoneVerified: true,
-    emailVerified: true,
+    recoveryCodeHash: hashRecoveryCode('VIVA-DEMO-RECOVERY'),
     createdAt: new Date().toISOString(),
   }
   saveUsers([demo])
@@ -71,7 +96,7 @@ function seedUsers(): User[] {
 }
 
 function toPublic(user: User): PublicUser {
-  const { passwordHash: _, ...rest } = user
+  const { passwordHash: _p, recoveryCodeHash: _r, ...rest } = user
   return rest
 }
 
@@ -94,14 +119,19 @@ function setSession(userId: string) {
   }
 }
 
-/** Pornește înregistrarea: validează datele și trimite OTP (SMS sau email). */
-export function startRegistration(input: {
+function persist(list: User[]) {
+  usersMemory = list
+  saveUsers(list)
+}
+
+export function registerUser(input: {
   name: string
   phone: string
   email: string
   password: string
-  channel: VerifyChannel
-}): { ok: true; result: RegisterStartResult } | { ok: false; error: string } {
+}):
+  | { ok: true; user: PublicUser; recoveryCode: string }
+  | { ok: false; error: string } {
   const name = input.name.trim()
   const phone = normalizePhone(input.phone)
   const email = input.email.trim().toLowerCase()
@@ -112,12 +142,6 @@ export function startRegistration(input: {
   if (password.length < 6)
     return { ok: false, error: 'Parola trebuie să aibă cel puțin 6 caractere.' }
 
-  if (input.channel === 'email') {
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return { ok: false, error: 'Introdu un email valid pentru verificare.' }
-    }
-  }
-
   const all = users()
   if (all.some((u) => phonesMatch(u.phone, phone))) {
     return { ok: false, error: 'Există deja un cont cu acest telefon.' }
@@ -126,86 +150,21 @@ export function startRegistration(input: {
     return { ok: false, error: 'Există deja un cont cu acest email.' }
   }
 
-  const destination = input.channel === 'sms' ? phone : email
-  const challenge = createOtpChallenge({
-    channel: input.channel,
-    destination,
-    payload: {
-      name,
-      phone,
-      email,
-      passwordHash: hashPassword(password),
-    },
-  })
-
-  return {
-    ok: true,
-    result: {
-      challengeId: challenge.id,
-      channel: challenge.channel,
-      maskedDestination: maskDestination(challenge.channel, destination),
-      expiresInSec: getOtpTtlSec(),
-      demoCode: challenge.demoCode,
-    },
-  }
-}
-
-export function resendRegistrationCode(
-  challengeId: string,
-): { ok: true; result: RegisterStartResult } | { ok: false; error: string } {
-  const result = resendOtpChallenge(challengeId)
-  if (!result.ok) return result
-  const { challenge } = result
-  return {
-    ok: true,
-    result: {
-      challengeId: challenge.id,
-      channel: challenge.channel,
-      maskedDestination: maskDestination(
-        challenge.channel,
-        challenge.destination,
-      ),
-      expiresInSec: getOtpTtlSec(),
-      demoCode: challenge.demoCode,
-    },
-  }
-}
-
-/** Confirmă OTP-ul și creează contul. */
-export function verifyRegistration(
-  challengeId: string,
-  code: string,
-): { ok: true; user: PublicUser } | { ok: false; error: string } {
-  const result = verifyOtpChallenge(challengeId, code)
-  if (!result.ok) return result
-
-  const { payload, channel } = result
-  const all = users()
-
-  if (all.some((u) => phonesMatch(u.phone, payload.phone))) {
-    return { ok: false, error: 'Există deja un cont cu acest telefon.' }
-  }
-
+  const recoveryCode = generateRecoveryCode()
   const user: User = {
     id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    name: payload.name,
-    phone: payload.phone,
-    email: payload.email,
-    passwordHash: payload.passwordHash,
-    phoneVerified: channel === 'sms',
-    emailVerified: channel === 'email' || Boolean(payload.email),
+    name,
+    phone,
+    email,
+    passwordHash: hashPassword(password),
+    recoveryCodeHash: hashRecoveryCode(recoveryCode),
     createdAt: new Date().toISOString(),
   }
 
-  // Dacă a verificat SMS dar are și email, emailul rămâne neverificat până la un flow separat
-  if (channel === 'sms') user.emailVerified = false
-  if (channel === 'email') user.phoneVerified = false
-
   all.push(user)
-  usersMemory = all
-  saveUsers(all)
+  persist(all)
   setSession(user.id)
-  return { ok: true, user: toPublic(user) }
+  return { ok: true, user: toPublic(user), recoveryCode }
 }
 
 export function loginUser(input: {
@@ -217,12 +176,6 @@ export function loginUser(input: {
   const user = all.find((u) => phonesMatch(u.phone, phone))
   if (!user || user.passwordHash !== hashPassword(input.password)) {
     return { ok: false, error: 'Telefon sau parolă greșită.' }
-  }
-  if (!user.phoneVerified && !user.emailVerified) {
-    return {
-      ok: false,
-      error: 'Cont neverificat. Creează din nou contul și confirmă codul.',
-    }
   }
   setSession(user.id)
   return { ok: true, user: toPublic(user) }
@@ -248,3 +201,112 @@ export function getSessionUser(): PublicUser | null {
     return null
   }
 }
+
+export function findAccountHint(phone: string):
+  | { ok: true; hasEmail: boolean; maskedEmail: string | null }
+  | { ok: false; error: string } {
+  const normalized = normalizePhone(phone)
+  const user = users().find((u) => phonesMatch(u.phone, normalized))
+  if (!user) return { ok: false, error: 'Nu există cont cu acest telefon.' }
+  return {
+    ok: true,
+    hasEmail: Boolean(user.email),
+    maskedEmail: user.email ? maskEmail(user.email) : null,
+  }
+}
+
+/** Reset cu codul de recuperare (100% local, fără email/SMS). */
+export function resetPasswordWithRecovery(input: {
+  phone: string
+  recoveryCode: string
+  newPassword: string
+}): { ok: true } | { ok: false; error: string } {
+  if (input.newPassword.length < 6) {
+    return { ok: false, error: 'Parola nouă trebuie să aibă cel puțin 6 caractere.' }
+  }
+  const phone = normalizePhone(input.phone)
+  const all = users()
+  const user = all.find((u) => phonesMatch(u.phone, phone))
+  if (!user) return { ok: false, error: 'Nu există cont cu acest telefon.' }
+  if (user.recoveryCodeHash !== hashRecoveryCode(input.recoveryCode)) {
+    return { ok: false, error: 'Cod de recuperare incorrect.' }
+  }
+  user.passwordHash = hashPassword(input.newPassword)
+  persist(all)
+  return { ok: true }
+}
+
+/** Pornește resetarea pe email: OTP via EmailJS (gratis) sau local. */
+export async function startEmailPasswordReset(phone: string): Promise<
+  { ok: true; challenge: PasswordResetChallenge } | { ok: false; error: string }
+> {
+  const normalized = normalizePhone(phone)
+  const user = users().find((u) => phonesMatch(u.phone, normalized))
+  if (!user) return { ok: false, error: 'Nu există cont cu acest telefon.' }
+  if (!user.email) {
+    return {
+      ok: false,
+      error:
+        'Contul nu are email. Folosește codul de recuperare salvat la înregistrare.',
+    }
+  }
+
+  const otp = generateOtp()
+  let delivery: 'emailjs' | 'local' = 'local'
+  if (isEmailJsConfigured()) {
+    const sent = await sendOtpEmail({
+      toEmail: user.email,
+      userName: user.name,
+      otpCode: otp,
+    })
+    delivery = sent.ok ? 'emailjs' : 'local'
+  }
+
+  const challenge = createResetChallenge({
+    userId: user.id,
+    method: 'email',
+    maskedHint: maskEmail(user.email),
+    code: otp,
+    delivery,
+  })
+
+  console.info(`[Viva Stil] Reset OTP pentru ${user.email}: ${otp}`)
+
+  return {
+    ok: true,
+    challenge: {
+      challengeId: challenge.id,
+      method: 'email',
+      maskedHint: maskEmail(user.email),
+      delivery,
+      demoCode: delivery === 'local' ? otp : undefined,
+    },
+  }
+}
+
+export function completeEmailPasswordReset(input: {
+  challengeId: string
+  otp: string
+  newPassword: string
+}): { ok: true } | { ok: false; error: string } {
+  if (input.newPassword.length < 6) {
+    return { ok: false, error: 'Parola nouă trebuie să aibă cel puțin 6 caractere.' }
+  }
+  const verified = verifyResetChallenge(input.challengeId, input.otp)
+  if (!verified.ok) return verified
+
+  const all = users()
+  const user = all.find((u) => u.id === verified.userId)
+  if (!user) return { ok: false, error: 'Cont inexistent.' }
+  user.passwordHash = hashPassword(input.newPassword)
+  persist(all)
+  return { ok: true }
+}
+
+export function getEmailResetChallenge(
+  challengeId: string,
+): ReturnType<typeof getResetChallenge> {
+  return getResetChallenge(challengeId)
+}
+
+export type { ResetMethod }

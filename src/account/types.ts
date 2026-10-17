@@ -3,19 +3,15 @@
  *
  * users
  *   id, name, phone (unique), email?, passwordHash,
- *   phoneVerified, emailVerified, createdAt
+ *   recoveryCodeHash, createdAt
  *
- * verification_challenges (OTP)
- *   id, channel: 'sms' | 'email', destination, codeHash,
- *   expiresAt, attempts, pendingUserPayload
+ * Verificare gratuită / locală:
+ *   1. Cod de recuperare (afișat o singură dată la înregistrare) — 100% offline
+ *   2. OTP pe email via EmailJS (plan gratuit) — opțional, vezi .env.example
+ *   3. OTP local/demo când EmailJS nu e configurat (cod afișat pe ecran)
  *
- * În producție:
- *   POST /api/auth/register/start   → trimite SMS (Twilio) sau email (Resend/SendGrid)
- *   POST /api/auth/register/verify  → validează OTP, creează user
- *   POST /api/auth/register/resend
+ * SMS real necesită provider plătit; pe site folosim email + cod recuperare.
  */
-
-export type VerifyChannel = 'sms' | 'email'
 
 export type User = {
   id: string
@@ -24,12 +20,12 @@ export type User = {
   email: string
   /** Mock — în producție: hash bcrypt pe server */
   passwordHash: string
-  phoneVerified: boolean
-  emailVerified: boolean
+  /** Hash al codului de recuperare (afișat o singură dată la signup) */
+  recoveryCodeHash: string
   createdAt: string
 }
 
-export type PublicUser = Omit<User, 'passwordHash'>
+export type PublicUser = Omit<User, 'passwordHash' | 'recoveryCodeHash'>
 
 export type AspectRatings = {
   service: number
@@ -42,7 +38,6 @@ export type Review = {
   appointmentId: string
   userId: string
   clientName: string
-  /** 1–5 overall */
   rating: number
   title: string
   body: string
@@ -58,15 +53,13 @@ export type ReviewDraft = {
   aspects: AspectRatings
 }
 
-export type RegisterStartResult = {
+export type ResetMethod = 'recovery' | 'email'
+
+export type PasswordResetChallenge = {
   challengeId: string
-  channel: VerifyChannel
-  /** Destinație mascată, ex. 07***222 sau a***@exemplu.ro */
-  maskedDestination: string
-  expiresInSec: number
-  /**
-   * Doar în mock/local — în producție codul NU se returnează clientului.
-   * Aici e afișat ca să poți testa fără SMS/email real.
-   */
-  demoCode: string
+  method: ResetMethod
+  maskedHint: string
+  /** Doar când EmailJS lipsește / eșuează — pentru test local */
+  demoCode?: string
+  delivery: 'emailjs' | 'local'
 }

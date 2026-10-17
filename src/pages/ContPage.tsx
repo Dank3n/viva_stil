@@ -20,8 +20,8 @@ export function ContPage() {
             Programările tale
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
-            Autentifică-te ca să vezi istoricul vizitelor și să lași recenzii.
-            Conturile noi se verifică prin SMS sau email cu un cod.
+            Autentifică-te ca să vezi istoricul vizitelor și să lași recenzii
+            detaliate cu stele după fiecare serviciu.
           </p>
         </FadeIn>
 
