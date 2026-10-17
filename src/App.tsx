@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
 import { ScrollToTop } from './components/layout/ScrollToTop'
 import { ContactPage } from './pages/ContactPage'
+import { ContPage } from './pages/ContPage'
 import { DesprePage } from './pages/DesprePage'
 import { GaleriePage } from './pages/GaleriePage'
 import { HomePage } from './pages/HomePage'
@@ -20,7 +21,9 @@ export default function App() {
           <Route path="galerie" element={<GaleriePage />} />
           <Route path="contact" element={<ContactPage />} />
           <Route path="programari" element={<ProgramariPage />} />
-          <Route path="recenzii" element={<Navigate to="/" replace />} />
+          <Route path="cont" element={<ContPage />} />
+          <Route path="programarile-mele" element={<Navigate to="/cont" replace />} />
+          <Route path="recenzii" element={<Navigate to="/cont" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

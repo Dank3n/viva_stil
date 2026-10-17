@@ -4,6 +4,7 @@ export const navLinks = [
   { label: 'Servicii', href: '/servicii' },
   { label: 'Galerie', href: '/galerie' },
   { label: 'Contact', href: '/contact' },
+  { label: 'Contul meu', href: '/cont' },
 ] as const
 
 export const aboutValues = [

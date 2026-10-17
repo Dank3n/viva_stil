@@ -58,6 +58,14 @@ export function Footer() {
                   Programări
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/cont"
+                  className="text-sm text-muted transition-colors hover:text-text"
+                >
+                  Contul meu
+                </Link>
+              </li>
               {businessInfo.phone ? (
                 <li>
                   <a

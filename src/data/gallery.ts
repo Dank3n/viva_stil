@@ -43,6 +43,12 @@ export const galleryImages: GalleryImage[] = [
 /** Reels Instagram (@vivastil.22) — Viva In Motion. */
 export const galleryVideos: GalleryVideo[] = [
   {
+    id: 'v3',
+    src: '/videos/reel-03.mp4',
+    poster: '/videos/reel-03-poster.jpg',
+    alt: 'Reel Instagram Viva Stil — pedichiură',
+  },
+  {
     id: 'v1',
     src: '/videos/reel-01.mp4',
     poster: '/videos/reel-01-poster.jpg',
@@ -53,12 +59,6 @@ export const galleryVideos: GalleryVideo[] = [
     src: '/videos/reel-02.mp4',
     poster: '/videos/reel-02-poster.jpg',
     alt: 'Reel Instagram Viva Stil',
-  },
-  {
-    id: 'v3',
-    src: '/videos/reel-03.mp4',
-    poster: '/videos/reel-03-poster.jpg',
-    alt: 'Reel Instagram Viva Stil — pedichiură',
   },
 ]
 

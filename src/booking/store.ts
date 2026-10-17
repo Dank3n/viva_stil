@@ -3,10 +3,11 @@
  * Înlocuiește cu fetch('/api/appointments') când ai backend.
  */
 
+import { phonesMatch } from '../account/phone'
 import type { Appointment, AppointmentDraft } from './types'
 import { addMinutesToTime, totalDurationMinutes } from './duration'
 
-const STORAGE_KEY = 'viva-stil-appointments'
+const STORAGE_KEY = 'viva-stil-appointments-v2'
 
 function load(): Appointment[] {
   try {
@@ -33,20 +34,22 @@ function save(items: Appointment[]) {
   }
 }
 
-/** Câteva programări mock pentru a demonstra sloturi ocupate. */
-function seedAppointments(): Appointment[] {
-  const today = new Date()
-  const y = today.getFullYear()
-  const m = String(today.getMonth() + 1).padStart(2, '0')
-  const d = String(today.getDate()).padStart(2, '0')
-  const date = `${y}-${m}-${d}`
+function ymdOffset(days: number): string {
+  const d = new Date()
+  d.setHours(12, 0, 0, 0)
+  d.setDate(d.getDate() + days)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const y2 = tomorrow.getFullYear()
-  const m2 = String(tomorrow.getMonth() + 1).padStart(2, '0')
-  const d2 = String(tomorrow.getDate()).padStart(2, '0')
-  const date2 = `${y2}-${m2}-${d2}`
+/** Câteva programări mock — inclusiv istoric pentru contul demo. */
+function seedAppointments(): Appointment[] {
+  const date = ymdOffset(0)
+  const date2 = ymdOffset(1)
+  const past1 = ymdOffset(-12)
+  const past2 = ymdOffset(-40)
 
   return [
     {
@@ -74,6 +77,49 @@ function seedAppointments(): Appointment[] {
       clientName: 'Demo Client 2',
       clientPhone: '0700000001',
       clientEmail: '',
+      status: 'confirmed',
+      createdAt: new Date().toISOString(),
+    },
+    // Cont demo: 0723 111 222 / demo123
+    {
+      id: 'apt-demo-past-1',
+      serviceIds: ['coafat-placa-lung', 'spalat-sweet'],
+      staffId: 'cristina',
+      date: past1,
+      time: '16:30',
+      startsAt: `${past1}T16:30:00`,
+      endsAt: `${past1}T18:00:00`,
+      clientName: 'Ana Popescu',
+      clientPhone: '0723111222',
+      clientEmail: 'ana@exemplu.ro',
+      status: 'completed',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'apt-demo-past-2',
+      serviceIds: ['manichiura-semipermanenta'],
+      staffId: 'larisa-radu',
+      date: past2,
+      time: '11:00',
+      startsAt: `${past2}T11:00:00`,
+      endsAt: `${past2}T12:00:00`,
+      clientName: 'Ana Popescu',
+      clientPhone: '0723111222',
+      clientEmail: 'ana@exemplu.ro',
+      status: 'completed',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'apt-demo-upcoming',
+      serviceIds: ['tratament-olaplex'],
+      staffId: 'andrei',
+      date: date2,
+      time: '11:00',
+      startsAt: `${date2}T11:00:00`,
+      endsAt: `${date2}T11:30:00`,
+      clientName: 'Ana Popescu',
+      clientPhone: '0723111222',
+      clientEmail: 'ana@exemplu.ro',
       status: 'confirmed',
       createdAt: new Date().toISOString(),
     },
@@ -118,4 +164,20 @@ export function createAppointment(draft: AppointmentDraft): Appointment {
   memory = all
   save(all)
   return appointment
+}
+
+/** Programările unui client (după telefon). */
+export function getAppointmentsForPhone(phone: string): Appointment[] {
+  return listAppointments()
+    .filter((a) => a.status !== 'cancelled' && phonesMatch(a.clientPhone, phone))
+    .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
+}
+
+export function isAppointmentPast(a: Appointment): boolean {
+  if (a.status === 'completed') return true
+  const end = new Date(a.endsAt.replace(' ', 'T'))
+  if (Number.isNaN(end.getTime())) {
+    return new Date(`${a.date}T${a.time}:00`).getTime() < Date.now()
+  }
+  return end.getTime() < Date.now()
 }

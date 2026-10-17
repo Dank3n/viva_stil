@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react'
 import { businessInfo } from '../../config/business'
 import { heroImage, heroVideos } from '../../data/gallery'
 import { BookCta } from '../ui/BookCta'
-import { BrandLogo } from '../ui/BrandLogo'
 import { Button } from '../ui/Button'
 
 const FADE_MS = 1400
@@ -109,21 +108,12 @@ export function Hero() {
 
       <div className="relative mx-auto flex min-h-[100svh] max-w-6xl items-center px-5 pb-28 pt-32 sm:px-8 sm:pb-28 lg:px-10 lg:pb-24 lg:pt-28">
         <div className="max-w-xl text-text">
-          <motion.div
-            className="mb-6"
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.15 }}
-          >
-            <BrandLogo heightClassName="h-36 sm:h-44 lg:h-56" />
-          </motion.div>
-
           <motion.h1
             id="hero-title"
             className="font-display text-5xl font-medium leading-[1.05] text-balance sm:text-6xl lg:text-7xl"
             initial={reduce ? false : { opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.85, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           >
             Frumusețea ta, în ritmul tău.
           </motion.h1>

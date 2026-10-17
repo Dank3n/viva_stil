@@ -58,7 +58,7 @@ export type AppointmentDraft = {
 export type Appointment = AppointmentDraft & {
   id: string
   endsAt: string
-  status: 'confirmed' | 'pending' | 'cancelled'
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed'
   createdAt: string
   /** @deprecated folosește serviceIds — păstrat pentru date vechi din localStorage */
   serviceId?: string

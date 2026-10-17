@@ -90,8 +90,8 @@ export function SuccessStep({
       </dl>
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-        <Button to="/" variant="primary" size="lg">
-          Înapoi acasă
+        <Button to="/cont" variant="primary" size="lg">
+          Vezi programările tale
         </Button>
         <Button
           type="button"

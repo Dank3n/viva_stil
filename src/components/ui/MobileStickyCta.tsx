@@ -77,7 +77,7 @@ export function MobileStickyCta() {
     }
   }, [pathname])
 
-  if (pathname === '/programari') return null
+  if (pathname === '/programari' || pathname === '/cont') return null
   if (otherCtaVisible) return null
 
   return (
