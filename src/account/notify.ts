@@ -1,17 +1,12 @@
 /**
- * Trimitere OTP pe email — gratuită via EmailJS (static-friendly).
+ * Emailuri via EmailJS (plan gratuit) — confirmare programare + OTP reset parolă.
  *
- * Setup (opțional):
- * 1. Cont free pe https://www.emailjs.com
- * 2. Service (Gmail / Outlook) + Template cu variabile:
- *      {{to_email}}, {{user_name}}, {{otp_code}}, {{salon_name}}
- * 3. În .env:
- *      VITE_EMAILJS_SERVICE_ID=...
- *      VITE_EMAILJS_TEMPLATE_ID=...
- *      VITE_EMAILJS_PUBLIC_KEY=...
- *
- * Fără aceste variabile → modul local (cod afișat pe ecran).
- * SMS real nu e gratuit; pentru telefon folosim codul de recuperare.
+ * Setup: https://www.emailjs.com
+ *   VITE_EMAILJS_SERVICE_ID
+ *   VITE_EMAILJS_PUBLIC_KEY
+ *   VITE_EMAILJS_TEMPLATE_ID          → OTP: {{to_email}} {{user_name}} {{otp_code}} {{salon_name}}
+ *   VITE_EMAILJS_BOOKING_TEMPLATE_ID  → booking: {{to_email}} {{client_name}} {{services}}
+ *         {{date}} {{time}} {{staff}} {{salon_name}} {{salon_phone}} {{salon_address}}
  */
 
 import { businessInfo } from '../config/business'
@@ -20,29 +15,41 @@ export type NotifyResult =
   | { ok: true; delivery: 'emailjs' }
   | { ok: false; delivery: 'local'; reason: string }
 
-function emailJsConfig() {
+function emailJsBase() {
   const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID as string | undefined
-  const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID as string | undefined
   const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY as string | undefined
-  if (!serviceId || !templateId || !publicKey) return null
-  return { serviceId, templateId, publicKey }
+  if (!serviceId?.trim() || !publicKey?.trim()) return null
+  return { serviceId, publicKey }
+}
+
+function otpTemplateId() {
+  return (import.meta.env.VITE_EMAILJS_TEMPLATE_ID as string | undefined)?.trim()
+}
+
+function bookingTemplateId() {
+  return (
+    import.meta.env.VITE_EMAILJS_BOOKING_TEMPLATE_ID as string | undefined
+  )?.trim()
 }
 
 export function isEmailJsConfigured(): boolean {
-  return emailJsConfig() !== null
+  return Boolean(emailJsBase() && otpTemplateId())
 }
 
-export async function sendOtpEmail(input: {
-  toEmail: string
-  userName: string
-  otpCode: string
-}): Promise<NotifyResult> {
-  const cfg = emailJsConfig()
+export function isBookingEmailConfigured(): boolean {
+  return Boolean(emailJsBase() && bookingTemplateId())
+}
+
+async function sendEmailJs(
+  templateId: string,
+  params: Record<string, string>,
+): Promise<NotifyResult> {
+  const cfg = emailJsBase()
   if (!cfg) {
     return {
       ok: false,
       delivery: 'local',
-      reason: 'EmailJS neconfigurat — se folosește verificarea locală.',
+      reason: 'EmailJS neconfigurat.',
     }
   }
 
@@ -52,14 +59,9 @@ export async function sendOtpEmail(input: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         service_id: cfg.serviceId,
-        template_id: cfg.templateId,
+        template_id: templateId,
         user_id: cfg.publicKey,
-        template_params: {
-          to_email: input.toEmail,
-          user_name: input.userName,
-          otp_code: input.otpCode,
-          salon_name: businessInfo.name,
-        },
+        template_params: params,
       }),
     })
 
@@ -77,7 +79,57 @@ export async function sendOtpEmail(input: {
     return {
       ok: false,
       delivery: 'local',
-      reason: 'Nu s-a putut trimite emailul. Se afișează codul local.',
+      reason: 'Nu s-a putut trimite emailul.',
     }
   }
+}
+
+export async function sendOtpEmail(input: {
+  toEmail: string
+  userName: string
+  otpCode: string
+}): Promise<NotifyResult> {
+  const templateId = otpTemplateId()
+  if (!templateId) {
+    return {
+      ok: false,
+      delivery: 'local',
+      reason: 'Template OTP EmailJS lipsă.',
+    }
+  }
+  return sendEmailJs(templateId, {
+    to_email: input.toEmail,
+    user_name: input.userName,
+    otp_code: input.otpCode,
+    salon_name: businessInfo.name,
+  })
+}
+
+export async function sendBookingConfirmationEmail(input: {
+  toEmail: string
+  clientName: string
+  services: string
+  date: string
+  time: string
+  staff: string
+}): Promise<NotifyResult> {
+  const templateId = bookingTemplateId()
+  if (!templateId) {
+    return {
+      ok: false,
+      delivery: 'local',
+      reason: 'Template confirmare programare EmailJS lipsă.',
+    }
+  }
+  return sendEmailJs(templateId, {
+    to_email: input.toEmail,
+    client_name: input.clientName,
+    services: input.services,
+    date: input.date,
+    time: input.time,
+    staff: input.staff,
+    salon_name: businessInfo.name,
+    salon_phone: businessInfo.phone,
+    salon_address: `${businessInfo.address}, ${businessInfo.city}`,
+  })
 }

@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../../account/AuthContext'
-import type { PasswordResetChallenge, ResetMethod } from '../../account/types'
+import type { PasswordResetChallenge } from '../../account/types'
 import { isEmailJsConfigured } from '../../account/notify'
+import { isSupabaseConfigured } from '../../lib/supabase'
 import { Button } from '../ui/Button'
 
 type Mode = 'login' | 'register' | 'forgot'
@@ -13,7 +14,6 @@ export function AuthPanel() {
     lookupAccount,
     startEmailReset,
     completeEmailReset,
-    resetWithRecovery,
   } = useAuth()
 
   const [mode, setMode] = useState<Mode>('login')
@@ -23,17 +23,15 @@ export function AuthPanel() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
-  const [recoveryShown, setRecoveryShown] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
-  // Forgot password
-  const [resetMethod, setResetMethod] = useState<ResetMethod>('recovery')
+  const [resetLogin, setResetLogin] = useState('')
   const [resetCode, setResetCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [emailChallenge, setEmailChallenge] =
     useState<PasswordResetChallenge | null>(null)
-  const [accountHasEmail, setAccountHasEmail] = useState(false)
+  const [accountFound, setAccountFound] = useState(false)
   const [maskedEmail, setMaskedEmail] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
 
   function goMode(next: Mode) {
     setMode(next)
@@ -42,53 +40,63 @@ export function AuthPanel() {
     setEmailChallenge(null)
     setResetCode('')
     setNewPassword('')
-    setAccountHasEmail(false)
+    setAccountFound(false)
     setMaskedEmail(null)
-    setResetMethod('recovery')
   }
 
-  function handleLogin(e: FormEvent) {
+  async function handleLogin(e: FormEvent) {
     e.preventDefault()
     setError('')
-    const result = login(phone, password)
-    if (!result.ok) setError(result.error)
-  }
-
-  function handleRegister(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    const result = register({ name, phone, email, password })
-    if (!result.ok) {
-      setError(result.error)
-      return
+    setBusy(true)
+    try {
+      const result = await login(phone, password)
+      if (!result.ok) setError(result.error)
+    } finally {
+      setBusy(false)
     }
-    setRecoveryShown(result.recoveryCode)
+  }
+
+  async function handleRegister(e: FormEvent) {
+    e.preventDefault()
+    setError('')
+    setBusy(true)
+    try {
+      const result = await register({ name, phone, email, password })
+      if (!result.ok) setError(result.error)
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function handleLookupForReset(e: FormEvent) {
     e.preventDefault()
     setError('')
     setInfo('')
-    const hint = lookupAccount(phone)
-    if (!hint.ok) {
-      setError(hint.error)
-      return
+    setBusy(true)
+    try {
+      const hint = await lookupAccount(resetLogin || phone)
+      if (!hint.ok) {
+        setError(hint.error)
+        setAccountFound(false)
+        return
+      }
+      setAccountFound(true)
+      setMaskedEmail(hint.maskedEmail)
+      setInfo(
+        hint.maskedEmail
+          ? `Cont găsit. Îți trimitem un cod pe ${hint.maskedEmail}.`
+          : 'Cont găsit. Trimite codul pe email.',
+      )
+    } finally {
+      setBusy(false)
     }
-    setAccountHasEmail(hint.hasEmail)
-    setMaskedEmail(hint.maskedEmail)
-    setInfo(
-      hint.hasEmail
-        ? `Cont găsit. Poți reseta cu codul de recuperare sau OTP pe ${hint.maskedEmail}.`
-        : 'Cont găsit. Folosește codul de recuperare (nu există email pe cont).',
-    )
-    if (!hint.hasEmail) setResetMethod('recovery')
   }
 
   async function handleSendEmailOtp() {
     setError('')
     setBusy(true)
     try {
-      const result = await startEmailReset(phone)
+      const result = await startEmailReset(resetLogin || phone)
       if (!result.ok) {
         setError(result.error)
         return
@@ -97,21 +105,25 @@ export function AuthPanel() {
       setInfo(
         result.challenge.delivery === 'emailjs'
           ? `Am trimis un cod pe ${result.challenge.maskedHint}.`
-          : `Mod local: codul apare mai jos (EmailJS neconfigurat).`,
+          : 'Mod local: codul apare mai jos (configurează EmailJS pentru email real).',
       )
     } finally {
       setBusy(false)
     }
   }
 
-  function handleCompleteReset(e: FormEvent) {
+  async function handleCompleteReset(e: FormEvent) {
     e.preventDefault()
     setError('')
-
-    if (resetMethod === 'recovery') {
-      const result = resetWithRecovery({
-        phone,
-        recoveryCode: resetCode,
+    if (!emailChallenge) {
+      setError('Trimite mai întâi codul pe email.')
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await completeEmailReset({
+        challengeId: emailChallenge.challengeId,
+        otp: resetCode,
         newPassword,
       })
       if (!result.ok) {
@@ -121,49 +133,9 @@ export function AuthPanel() {
       setInfo('Parola a fost schimbată. Te poți autentifica.')
       goMode('login')
       setPassword('')
-      return
+    } finally {
+      setBusy(false)
     }
-
-    if (!emailChallenge) {
-      setError('Trimite mai întâi codul pe email.')
-      return
-    }
-    const result = completeEmailReset({
-      challengeId: emailChallenge.challengeId,
-      otp: resetCode,
-      newPassword,
-    })
-    if (!result.ok) {
-      setError(result.error)
-      return
-    }
-    setInfo('Parola a fost schimbată. Te poți autentifica.')
-    goMode('login')
-    setPassword('')
-  }
-
-  if (recoveryShown) {
-    return (
-      <div className="mx-auto max-w-md border border-line bg-surface p-6 sm:p-8">
-        <h2 className="font-display text-2xl text-text">Salvează codul de recuperare</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          Contul a fost creat. Acest cod e singura cale gratuită, offline, de a-ți
-          reseta parola dacă o uiți. Copiază-l într-un loc sigur — nu îl mai
-          afișăm.
-        </p>
-        <p className="mt-6 break-all rounded-sm border border-champagne/40 bg-champagne/10 px-4 py-4 text-center font-mono text-lg tracking-wide text-champagne-soft">
-          {recoveryShown}
-        </p>
-        <Button
-          type="button"
-          size="lg"
-          className="mt-6 w-full"
-          onClick={() => setRecoveryShown(null)}
-        >
-          Am salvat codul — continuă
-        </Button>
-      </div>
-    )
   }
 
   return (
@@ -209,91 +181,49 @@ export function AuthPanel() {
         <>
           <h2 className="font-display text-2xl text-text">Resetare parolă</h2>
           <p className="mt-2 mb-6 text-sm leading-relaxed text-muted">
-            Verificare gratuită: cod de recuperare (local) sau OTP pe email
-            {isEmailJsConfigured()
-              ? ' (EmailJS).'
-              : ' (local / EmailJS opțional).'}{' '}
-            SMS real nu e gratuit — de aceea nu îl folosim.
+            Introdu telefonul sau emailul contului. Îți trimitem un cod pe
+            email
+            {isEmailJsConfigured() ? '' : ' (local până configurezi EmailJS)'}
+            , apoi setezi o parolă nouă pe același cont.
           </p>
 
           <form onSubmit={handleLookupForReset} className="space-y-4">
             <label className="block">
               <span className="text-[0.7rem] uppercase tracking-[0.16em] text-taupe">
-                Telefonul contului *
+                Telefon sau email *
               </span>
               <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                type="text"
+                value={resetLogin}
+                onChange={(e) => setResetLogin(e.target.value)}
                 className="mt-1.5 w-full border border-line bg-bg px-4 py-3 text-text outline-none focus:border-champagne"
-                placeholder="07xx xxx xxx"
+                placeholder="07xx… sau email@exemplu.ro"
                 required
               />
             </label>
-            <Button type="submit" variant="secondary" className="w-full">
+            <Button
+              type="submit"
+              variant="secondary"
+              className="w-full"
+              disabled={busy}
+            >
               Caută contul
             </Button>
           </form>
 
-          {info || accountHasEmail || maskedEmail !== null ? (
+          {accountFound ? (
             <form onSubmit={handleCompleteReset} className="mt-6 space-y-4">
-              <fieldset>
-                <legend className="text-[0.7rem] uppercase tracking-[0.16em] text-taupe">
-                  Metodă de verificare
-                </legend>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResetMethod('recovery')
-                      setEmailChallenge(null)
-                      setResetCode('')
-                    }}
-                    className={[
-                      'border px-3 py-3 text-left text-sm transition-colors',
-                      resetMethod === 'recovery'
-                        ? 'border-champagne bg-champagne/10 text-text'
-                        : 'border-line text-muted',
-                    ].join(' ')}
-                  >
-                    Cod recuperare
-                    <span className="mt-1 block text-xs opacity-70">
-                      Offline, gratuit
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!accountHasEmail}
-                    onClick={() => {
-                      setResetMethod('email')
-                      setResetCode('')
-                    }}
-                    className={[
-                      'border px-3 py-3 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-                      resetMethod === 'email'
-                        ? 'border-champagne bg-champagne/10 text-text'
-                        : 'border-line text-muted',
-                    ].join(' ')}
-                  >
-                    Cod pe email
-                    <span className="mt-1 block text-xs opacity-70">
-                      {maskedEmail ?? 'necesită email pe cont'}
-                    </span>
-                  </button>
-                </div>
-              </fieldset>
-
-              {resetMethod === 'email' ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  disabled={busy}
-                  onClick={handleSendEmailOtp}
-                >
-                  {busy ? 'Se trimite…' : 'Trimite codul pe email'}
-                </Button>
-              ) : null}
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                disabled={busy}
+                onClick={handleSendEmailOtp}
+              >
+                {busy && !emailChallenge
+                  ? 'Se trimite…'
+                  : `Trimite codul pe ${maskedEmail ?? 'email'}`}
+              </Button>
 
               {emailChallenge?.demoCode ? (
                 <aside className="border border-line bg-elevated/40 p-3 text-xs text-muted">
@@ -306,18 +236,15 @@ export function AuthPanel() {
 
               <label className="block">
                 <span className="text-[0.7rem] uppercase tracking-[0.16em] text-taupe">
-                  {resetMethod === 'recovery'
-                    ? 'Cod de recuperare *'
-                    : 'Cod OTP din email *'}
+                  Cod din email *
                 </span>
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={resetCode}
                   onChange={(e) => setResetCode(e.target.value)}
                   className="mt-1.5 w-full border border-line bg-bg px-4 py-3 font-mono text-text outline-none focus:border-champagne"
-                  placeholder={
-                    resetMethod === 'recovery' ? 'XXXX-XXXX-XXXX' : '6 cifre'
-                  }
+                  placeholder="6 cifre"
                   required
                 />
               </label>
@@ -343,18 +270,27 @@ export function AuthPanel() {
               ) : null}
               {info ? <p className="text-sm text-muted">{info}</p> : null}
 
-              <Button type="submit" size="lg" className="w-full">
+              <Button type="submit" size="lg" className="w-full" disabled={busy}>
                 Salvează parola nouă
               </Button>
             </form>
+          ) : null}
+
+          {error && !accountFound ? (
+            <p className="mt-4 text-sm text-red-400" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {info && !accountFound ? (
+            <p className="mt-4 text-sm text-muted">{info}</p>
           ) : null}
         </>
       ) : (
         <>
           <p className="mb-6 text-sm leading-relaxed text-muted">
             {mode === 'login'
-              ? 'Intră în cont ca să vezi programările și să lași recenzii.'
-              : 'Creează un cont cu telefonul folosit la programări. Vei primi un cod de recuperare — salvează-l.'}
+              ? 'Intră în cont ca să vezi programările pe orice dispozitiv și să lași recenzii.'
+              : 'Creează un cont o singură dată — emailul e obligatoriu pentru confirmări și resetare parolă.'}
           </p>
 
           <form
@@ -380,10 +316,10 @@ export function AuthPanel() {
 
             <label className="block">
               <span className="text-[0.7rem] uppercase tracking-[0.16em] text-taupe">
-                Telefon *
+                {mode === 'login' ? 'Telefon sau email *' : 'Telefon *'}
               </span>
               <input
-                type="tel"
+                type={mode === 'login' ? 'text' : 'tel'}
                 autoComplete="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -396,7 +332,7 @@ export function AuthPanel() {
             {mode === 'register' ? (
               <label className="block">
                 <span className="text-[0.7rem] uppercase tracking-[0.16em] text-taupe">
-                  Email (recomandat pentru resetare)
+                  Email *
                 </span>
                 <input
                   type="email"
@@ -404,6 +340,8 @@ export function AuthPanel() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="mt-1.5 w-full border border-line bg-bg px-4 py-3 text-text outline-none focus:border-champagne"
+                  placeholder="email@exemplu.ro"
+                  required
                 />
               </label>
             ) : null}
@@ -431,8 +369,12 @@ export function AuthPanel() {
             ) : null}
             {info ? <p className="text-sm text-muted">{info}</p> : null}
 
-            <Button type="submit" size="lg" className="w-full">
-              {mode === 'login' ? 'Intră în cont' : 'Creează cont'}
+            <Button type="submit" size="lg" className="w-full" disabled={busy}>
+              {busy
+                ? 'Se procesează…'
+                : mode === 'login'
+                  ? 'Intră în cont'
+                  : 'Creează cont'}
             </Button>
           </form>
 
@@ -450,16 +392,19 @@ export function AuthPanel() {
 
       {mode === 'login' ? (
         <aside className="mt-6 border border-line bg-elevated/40 p-4 text-xs leading-relaxed text-muted">
-          <p className="font-medium text-text">Cont demo</p>
-          <p className="mt-1">
-            Telefon <span className="text-champagne-soft">0723 111 222</span>
-            {' · '}
-            parolă <span className="text-champagne-soft">demo123</span>
+          <p className="font-medium text-text">
+            {isSupabaseConfigured()
+              ? 'Conturile se salvează în baza de date (Supabase).'
+              : 'Mod local — configurează Supabase pentru conturi pe toate dispozitivele.'}
           </p>
-          <p className="mt-2">
-            Cod recuperare demo:{' '}
-            <span className="font-mono text-champagne-soft">VIVA-DEMO-RECOVERY</span>
-          </p>
+          {!isSupabaseConfigured() ? (
+            <p className="mt-2">
+              Demo local: telefon{' '}
+              <span className="text-champagne-soft">0723 111 222</span>
+              {' · '}
+              parolă <span className="text-champagne-soft">demo123</span>
+            </p>
+          ) : null}
         </aside>
       ) : null}
     </div>

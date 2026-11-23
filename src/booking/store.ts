@@ -1,9 +1,14 @@
 /**
- * Store mock pentru programări.
- * Înlocuiește cu fetch('/api/appointments') când ai backend.
+ * Programări: localStorage + sync Supabase (când e configurat).
  */
 
 import { phonesMatch } from '../account/phone'
+import {
+  cloudCreateAppointment,
+  cloudGetAppointmentsForPhone,
+  cloudListSlots,
+  isCloudBookingEnabled,
+} from './cloudStore'
 import type { Appointment, AppointmentDraft } from './types'
 import { addMinutesToTime, totalDurationMinutes } from './duration'
 
@@ -34,14 +39,15 @@ function save(items: Appointment[]) {
   }
 }
 
+function pad2(n: number) {
+  return String(n).padStart(2, '0')
+}
+
 function ymdOffset(days: number): string {
   const d = new Date()
   d.setHours(12, 0, 0, 0)
   d.setDate(d.getDate() + days)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
 
 /** Câteva programări mock — inclusiv istoric pentru contul demo. */
@@ -62,7 +68,7 @@ function seedAppointments(): Appointment[] {
       endsAt: `${date}T10:40:00`,
       clientName: 'Demo Client',
       clientPhone: '0700000000',
-      clientEmail: '',
+      clientEmail: 'demo@exemplu.ro',
       status: 'confirmed',
       createdAt: new Date().toISOString(),
     },
@@ -76,11 +82,10 @@ function seedAppointments(): Appointment[] {
       endsAt: `${date2}T15:00:00`,
       clientName: 'Demo Client 2',
       clientPhone: '0700000001',
-      clientEmail: '',
+      clientEmail: 'demo2@exemplu.ro',
       status: 'confirmed',
       createdAt: new Date().toISOString(),
     },
-    // Cont demo: 0723 111 222 / demo123
     {
       id: 'apt-demo-past-1',
       serviceIds: ['coafat-placa-lung', 'spalat-sweet'],
@@ -127,11 +132,55 @@ function seedAppointments(): Appointment[] {
 }
 
 let memory: Appointment[] | null = null
+let cloudHydrated = false
 
 export function listAppointments(): Appointment[] {
   if (typeof window === 'undefined') return seedAppointments()
   if (!memory) memory = load()
   return memory
+}
+
+/** Încarcă sloturile din cloud (fără PII) pentru disponibilitate. */
+export async function hydrateFromCloud(): Promise<void> {
+  if (!isCloudBookingEnabled() || cloudHydrated) return
+  try {
+    const slots = await cloudListSlots()
+    const all = listAppointments()
+    const byId = new Map(all.map((a) => [a.id, a]))
+    for (const slot of slots) {
+      const existing = byId.get(slot.id)
+      if (existing) {
+        existing.staffId = slot.staffId
+        existing.date = slot.date
+        existing.time = slot.time
+        existing.startsAt = slot.startsAt
+        existing.endsAt = slot.endsAt
+        existing.status = slot.status
+      } else {
+        const stub: Appointment = {
+          id: slot.id,
+          serviceIds: [],
+          staffId: slot.staffId,
+          date: slot.date,
+          time: slot.time,
+          startsAt: slot.startsAt,
+          endsAt: slot.endsAt,
+          clientName: '',
+          clientPhone: '',
+          clientEmail: '',
+          status: slot.status,
+          createdAt: new Date().toISOString(),
+        }
+        all.push(stub)
+        byId.set(slot.id, stub)
+      }
+    }
+    memory = all
+    save(all)
+    cloudHydrated = true
+  } catch (err) {
+    console.warn('[Viva Stil] hydrateFromCloud failed', err)
+  }
 }
 
 export function getAppointmentsForDay(
@@ -146,13 +195,16 @@ export function getAppointmentsForDay(
   })
 }
 
-export function createAppointment(draft: AppointmentDraft): Appointment {
+export async function createAppointment(
+  draft: AppointmentDraft,
+): Promise<Appointment> {
   const duration = totalDurationMinutes(draft.serviceIds)
   const endTime = addMinutesToTime(draft.time, duration)
 
   const appointment: Appointment = {
     ...draft,
     serviceIds: [...draft.serviceIds],
+    clientEmail: draft.clientEmail.trim().toLowerCase(),
     id: `apt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     endsAt: `${draft.date}T${endTime}:00`,
     status: 'confirmed',
@@ -163,13 +215,34 @@ export function createAppointment(draft: AppointmentDraft): Appointment {
   all.push(appointment)
   memory = all
   save(all)
+
+  if (isCloudBookingEnabled()) {
+    const cloud = await cloudCreateAppointment(appointment)
+    if (!cloud.ok) {
+      console.warn('[Viva Stil] Sync programare cloud:', cloud.error)
+    }
+  }
+
   return appointment
 }
 
-/** Programările unui client (după telefon). */
-export function getAppointmentsForPhone(phone: string): Appointment[] {
+/** Programările unui client (după telefon) — cloud prioritar. */
+export async function getAppointmentsForPhone(
+  phone: string,
+): Promise<Appointment[]> {
+  if (isCloudBookingEnabled()) {
+    const cloud = await cloudGetAppointmentsForPhone(phone)
+    if (cloud.length) {
+      return cloud.sort((a, b) => b.startsAt.localeCompare(a.startsAt))
+    }
+  }
   return listAppointments()
-    .filter((a) => a.status !== 'cancelled' && phonesMatch(a.clientPhone, phone))
+    .filter(
+      (a) =>
+        a.status !== 'cancelled' &&
+        a.clientPhone &&
+        phonesMatch(a.clientPhone, phone),
+    )
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
 }
 

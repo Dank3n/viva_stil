@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../../account/AuthContext'
 import { getReviewForAppointment } from '../../account/reviewStore'
 import {
   getAppointmentsForPhone,
   isAppointmentPast,
 } from '../../booking/store'
+import type { Appointment } from '../../booking/types'
 import { getAppointmentServiceIds } from '../../booking/types'
 import { getSpecialistById } from '../../data/specialists'
 import { services } from '../../data/services'
@@ -32,13 +33,27 @@ export function AppointmentHistory() {
   const { user, logout } = useAuth()
   const [tab, setTab] = useState<'upcoming' | 'past'>('past')
   const [reviewingId, setReviewingId] = useState<string | null>(null)
-  const [tick, setTick] = useState(0)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const appointments = useMemo(() => {
-    if (!user) return []
-    void tick
-    return getAppointmentsForPhone(user.phone)
-  }, [user, tick])
+  useEffect(() => {
+    if (!user) {
+      setAppointments([])
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    void getAppointmentsForPhone(user.phone).then((list) => {
+      if (!cancelled) {
+        setAppointments(list)
+        setLoading(false)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const upcoming = appointments.filter((a) => !isAppointmentPast(a))
   const past = appointments.filter((a) => isAppointmentPast(a))
@@ -93,7 +108,9 @@ export function AppointmentHistory() {
         </button>
       </div>
 
-      {list.length === 0 ? (
+      {loading ? (
+        <p className="text-sm text-muted">Se încarcă programările…</p>
+      ) : list.length === 0 ? (
         <p className="border border-line bg-elevated/40 p-6 text-sm text-muted">
           {tab === 'past'
             ? 'Nu ai încă vizite în istoric. După o programare finalizată, apare aici.'
@@ -173,7 +190,6 @@ export function AppointmentHistory() {
                     onCancel={() => setReviewingId(null)}
                     onSaved={() => {
                       setReviewingId(null)
-                      setTick((n) => n + 1)
                     }}
                   />
                 ) : null}

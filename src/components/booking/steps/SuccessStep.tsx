@@ -17,6 +17,7 @@ type SuccessStepProps = {
   appointment: Appointment
   services: Service[]
   staffName: string
+  emailDelivery?: 'sent' | 'local' | null
   onRestart: () => void
 }
 
@@ -33,6 +34,7 @@ export function SuccessStep({
   appointment,
   services: selectedServices,
   staffName,
+  emailDelivery = null,
   onRestart,
 }: SuccessStepProps) {
   const serviceIds = getAppointmentServiceIds(appointment)
@@ -52,6 +54,24 @@ export function SuccessStep({
         Mulțumim, {appointment.clientName}. Te așteptăm la{' '}
         {businessInfo.name}.
       </p>
+      {appointment.clientEmail ? (
+        <p className="mt-2 text-sm text-muted">
+          {emailDelivery === 'sent' ? (
+            <>
+              Confirmarea a fost trimisă pe{' '}
+              <span className="text-champagne-soft">{appointment.clientEmail}</span>.
+            </>
+          ) : (
+            <>
+              Email:{' '}
+              <span className="text-champagne-soft">{appointment.clientEmail}</span>
+              {emailDelivery === 'local'
+                ? ' — configurează EmailJS ca să trimiți confirmarea automat.'
+                : null}
+            </>
+          )}
+        </p>
+      ) : null}
 
       <dl className="mt-8 space-y-3 border border-line bg-elevated/40 p-5 text-left text-sm">
         <div className="flex justify-between gap-4">

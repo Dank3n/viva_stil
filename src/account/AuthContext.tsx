@@ -13,7 +13,6 @@ import {
   loginUser,
   logoutUser,
   registerUser,
-  resetPasswordWithRecovery,
   startEmailPasswordReset,
 } from './authStore'
 import type { PasswordResetChallenge, PublicUser } from './types'
@@ -23,19 +22,16 @@ type AuthContextValue = {
   login: (
     phone: string,
     password: string,
-  ) => { ok: true } | { ok: false; error: string }
+  ) => Promise<{ ok: true } | { ok: false; error: string }>
   register: (input: {
     name: string
     phone: string
     email: string
     password: string
-  }) =>
-    | { ok: true; recoveryCode: string }
-    | { ok: false; error: string }
+  }) => Promise<{ ok: true } | { ok: false; error: string }>
   lookupAccount: typeof findAccountHint
   startEmailReset: typeof startEmailPasswordReset
   completeEmailReset: typeof completeEmailPasswordReset
-  resetWithRecovery: typeof resetPasswordWithRecovery
   logout: () => void
   refresh: () => void
 }
@@ -49,24 +45,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(getSessionUser())
   }, [])
 
-  const login = useCallback((phone: string, password: string) => {
-    const result = loginUser({ phone, password })
+  const login = useCallback(async (phone: string, password: string) => {
+    const result = await loginUser({ phone, password })
     if (!result.ok) return result
     setUser(result.user)
     return { ok: true as const }
   }, [])
 
   const register = useCallback(
-    (input: {
+    async (input: {
       name: string
       phone: string
       email: string
       password: string
     }) => {
-      const result = registerUser(input)
+      const result = await registerUser(input)
       if (!result.ok) return result
       setUser(result.user)
-      return { ok: true as const, recoveryCode: result.recoveryCode }
+      return { ok: true as const }
     },
     [],
   )
@@ -84,7 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lookupAccount: findAccountHint,
       startEmailReset: startEmailPasswordReset,
       completeEmailReset: completeEmailPasswordReset,
-      resetWithRecovery: resetPasswordWithRecovery,
       logout,
       refresh,
     }),

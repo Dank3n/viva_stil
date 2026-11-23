@@ -19,6 +19,7 @@ type DetailsStepProps = {
     clientPhone: string
     clientEmail: string
   }) => void
+  submitting?: boolean
 }
 
 function formatDateRo(dateStr: string) {
@@ -37,6 +38,7 @@ export function DetailsStep({
   time,
   onBack,
   onSubmit,
+  submitting = false,
 }: DetailsStepProps) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -49,19 +51,23 @@ export function DetailsStep({
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!name.trim() || !phone.trim()) {
-      setError('Completează numele și numărul de telefon.')
+    if (!name.trim() || !phone.trim() || !email.trim()) {
+      setError('Completează numele, telefonul și emailul.')
       return
     }
     if (phone.replace(/\D/g, '').length < 9) {
       setError('Introdu un număr de telefon valid.')
       return
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Introdu un email valid — pe el primești confirmarea.')
+      return
+    }
     setError('')
     onSubmit({
       clientName: name,
       clientPhone: phone,
-      clientEmail: email,
+      clientEmail: email.trim().toLowerCase(),
     })
   }
 
@@ -84,7 +90,7 @@ export function DetailsStep({
           Detaliile tale
         </h2>
         <p className="mt-2 text-sm text-muted">
-          Confirmă programarea — te contactăm dacă e nevoie.
+          Confirmarea ajunge pe email — câmp obligatoriu.
         </p>
       </header>
 
@@ -166,7 +172,7 @@ export function DetailsStep({
 
         <label className="block">
           <span className="text-[0.7rem] uppercase tracking-[0.16em] text-taupe">
-            Email <span className="normal-case tracking-normal">(opțional)</span>
+            Email *
           </span>
           <input
             type="email"
@@ -176,6 +182,7 @@ export function DetailsStep({
             onChange={(e) => setEmail(e.target.value)}
             className="mt-1.5 w-full border border-line bg-bg px-4 py-3 text-text outline-none transition-colors placeholder:text-muted/50 focus:border-champagne"
             placeholder="email@exemplu.ro"
+            required
           />
         </label>
 
@@ -185,8 +192,13 @@ export function DetailsStep({
           </p>
         ) : null}
 
-        <Button type="submit" size="lg" className="mt-2 w-full sm:w-auto">
-          Confirmă programarea
+        <Button
+          type="submit"
+          size="lg"
+          className="mt-2 w-full sm:w-auto"
+          disabled={submitting}
+        >
+          {submitting ? 'Se confirmă…' : 'Confirmă programarea'}
         </Button>
       </form>
     </div>

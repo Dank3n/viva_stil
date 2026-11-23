@@ -1,16 +1,8 @@
 /**
- * Cont client + recenzii — pregătit pentru API / DB.
+ * Cont client + recenzii.
  *
- * users
- *   id, name, phone (unique), email?, passwordHash,
- *   recoveryCodeHash, createdAt
- *
- * Verificare gratuită / locală:
- *   1. Cod de recuperare (afișat o singură dată la înregistrare) — 100% offline
- *   2. OTP pe email via EmailJS (plan gratuit) — opțional, vezi .env.example
- *   3. OTP local/demo când EmailJS nu e configurat (cod afișat pe ecran)
- *
- * SMS real necesită provider plătit; pe site folosim email + cod recuperare.
+ * Persistență: Supabase (VITE_SUPABASE_*) sau localStorage fallback.
+ * Email obligatoriu. Reset parolă: OTP pe email (EmailJS).
  */
 
 export type User = {
@@ -18,9 +10,8 @@ export type User = {
   name: string
   phone: string
   email: string
-  /** Mock — în producție: hash bcrypt pe server */
+  /** Mock local — pe cloud: bcrypt în PostgreSQL */
   passwordHash: string
-  /** Hash al codului de recuperare (afișat o singură dată la signup) */
   recoveryCodeHash: string
   createdAt: string
 }
@@ -53,13 +44,13 @@ export type ReviewDraft = {
   aspects: AspectRatings
 }
 
-export type ResetMethod = 'recovery' | 'email'
+export type ResetMethod = 'email'
 
 export type PasswordResetChallenge = {
   challengeId: string
   method: ResetMethod
   maskedHint: string
-  /** Doar când EmailJS lipsește / eșuează — pentru test local */
+  /** Doar când EmailJS lipsește — pentru test local */
   demoCode?: string
   delivery: 'emailjs' | 'local'
 }

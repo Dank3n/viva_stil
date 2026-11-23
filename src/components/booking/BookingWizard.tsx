@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { sendBookingConfirmationEmail } from '../../account/notify'
 import {
   getAvailableDates,
   getAvailableSlots,
   resolveStaffForSlot,
 } from '../../booking/availability'
-import { createAppointment } from '../../booking/store'
+import { createAppointment, hydrateFromCloud } from '../../booking/store'
 import {
   ANY_STAFF_ID,
   type Appointment,
   type BookingStep,
 } from '../../booking/types'
+import { businessInfo } from '../../config/business'
 import { services } from '../../data/services'
 import {
   getSpecialistById,
@@ -53,6 +55,15 @@ export function BookingWizard() {
   const [time, setTime] = useState('')
   const [startsAt, setStartsAt] = useState('')
   const [confirmed, setConfirmed] = useState<Appointment | null>(null)
+  const [emailDelivery, setEmailDelivery] = useState<
+    'sent' | 'local' | 'pending' | null
+  >(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [availabilityTick, setAvailabilityTick] = useState(0)
+
+  useEffect(() => {
+    void hydrateFromCloud().then(() => setAvailabilityTick((n) => n + 1))
+  }, [])
 
   useEffect(() => {
     const fromUrl = parseInitialServices(params)
@@ -82,9 +93,10 @@ export function BookingWizard() {
   )
 
   const availableDates = useMemo(() => {
+    void availabilityTick
     if (!serviceIds.length || !staffId) return []
     return getAvailableDates(serviceIds, staffId)
-  }, [serviceIds, staffId])
+  }, [serviceIds, staffId, availabilityTick])
 
   useEffect(() => {
     if (step !== 'datetime') return
@@ -93,9 +105,10 @@ export function BookingWizard() {
   }, [step, availableDates, date])
 
   const slots = useMemo(() => {
+    void availabilityTick
     if (!serviceIds.length || !staffId || !date) return []
     return getAvailableSlots(serviceIds, staffId, date)
-  }, [serviceIds, staffId, date])
+  }, [serviceIds, staffId, date, availabilityTick])
 
   function toggleService(id: string) {
     setServiceIds((prev) =>
@@ -130,26 +143,55 @@ export function BookingWizard() {
     setStep('details')
   }
 
-  function submitDetails(data: {
+  async function submitDetails(data: {
     clientName: string
     clientPhone: string
     clientEmail: string
   }) {
     if (!serviceIds.length || !staffId || !date || !time || !startsAt) return
+    if (submitting) return
+    setSubmitting(true)
+    setEmailDelivery('pending')
 
-    const resolvedStaff = resolveStaffForSlot(serviceIds, staffId, date, time)
-    const appointment = createAppointment({
-      serviceIds,
-      staffId: resolvedStaff,
-      date,
-      time,
-      startsAt,
-      clientName: data.clientName.trim(),
-      clientPhone: data.clientPhone.trim(),
-      clientEmail: data.clientEmail.trim(),
-    })
-    setConfirmed(appointment)
-    setStep('success')
+    try {
+      const resolvedStaff = resolveStaffForSlot(serviceIds, staffId, date, time)
+      const staffName =
+        getSpecialistById(resolvedStaff)?.name ??
+        (staffId === ANY_STAFF_ID ? 'Oricare specialist' : staffLabel)
+
+      const appointment = await createAppointment({
+        serviceIds,
+        staffId: resolvedStaff,
+        date,
+        time,
+        startsAt,
+        clientName: data.clientName.trim(),
+        clientPhone: data.clientPhone.trim(),
+        clientEmail: data.clientEmail.trim(),
+      })
+
+      const [y, m, d] = date.split('-').map(Number)
+      const dateLabel = new Date(y, m - 1, d).toLocaleDateString('ro-RO', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      })
+
+      const mail = await sendBookingConfirmationEmail({
+        toEmail: appointment.clientEmail,
+        clientName: appointment.clientName,
+        services: selectedServices.map((s) => s.name).join(', '),
+        date: dateLabel,
+        time: `${appointment.time} (${businessInfo.name})`,
+        staff: staffName,
+      })
+
+      setEmailDelivery(mail.ok ? 'sent' : 'local')
+      setConfirmed(appointment)
+      setStep('success')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   function restart() {
@@ -227,6 +269,7 @@ export function BookingWizard() {
             time={time}
             onBack={goBack}
             onSubmit={submitDetails}
+            submitting={submitting}
           />
         ) : null}
 
@@ -237,6 +280,7 @@ export function BookingWizard() {
             staffName={
               getSpecialistById(confirmed.staffId)?.name ?? staffLabel
             }
+            emailDelivery={emailDelivery === 'pending' ? null : emailDelivery}
             onRestart={restart}
           />
         ) : null}
