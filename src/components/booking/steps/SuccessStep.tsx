@@ -18,6 +18,7 @@ type SuccessStepProps = {
   services: Service[]
   staffName: string
   emailDelivery?: 'sent' | 'local' | null
+  emailError?: string | null
   onRestart: () => void
 }
 
@@ -35,6 +36,7 @@ export function SuccessStep({
   services: selectedServices,
   staffName,
   emailDelivery = null,
+  emailError = null,
   onRestart,
 }: SuccessStepProps) {
   const serviceIds = getAppointmentServiceIds(appointment)
@@ -55,22 +57,33 @@ export function SuccessStep({
         {businessInfo.name}.
       </p>
       {appointment.clientEmail ? (
-        <p className="mt-2 text-sm text-muted">
+        <div className="mt-3 text-sm">
           {emailDelivery === 'sent' ? (
-            <>
+            <p className="text-muted">
               Confirmarea a fost trimisă pe{' '}
-              <span className="text-champagne-soft">{appointment.clientEmail}</span>.
-            </>
+              <span className="text-champagne-soft">
+                {appointment.clientEmail}
+              </span>
+              .
+            </p>
           ) : (
-            <>
-              Email:{' '}
-              <span className="text-champagne-soft">{appointment.clientEmail}</span>
-              {emailDelivery === 'local'
-                ? ' — configurează EmailJS ca să trimiți confirmarea automat.'
-                : null}
-            </>
+            <aside
+              className="border border-line bg-elevated/40 p-3 text-left text-xs leading-relaxed text-muted"
+              role="status"
+            >
+              <p>
+                Programarea e salvată, dar emailul către{' '}
+                <span className="text-champagne-soft">
+                  {appointment.clientEmail}
+                </span>{' '}
+                nu a plecat.
+              </p>
+              {emailError ? (
+                <p className="mt-2 break-words text-red-400/90">{emailError}</p>
+              ) : null}
+            </aside>
           )}
-        </p>
+        </div>
       ) : null}
 
       <dl className="mt-8 space-y-3 border border-line bg-elevated/40 p-5 text-left text-sm">

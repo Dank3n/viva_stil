@@ -14,9 +14,12 @@ Fără aceste variabile, site-ul folosește localStorage (doar pe același brows
 
 ## 2. EmailJS (confirmare programare + cod reset parolă)
 
+Fără `.env` completat, programarea se salvează dar **emailul nu pleacă**.
+Cheile trebuie să existe **la build** (`npm run dev` / deploy).
+
 1. Cont pe [emailjs.com](https://www.emailjs.com) (plan free)
 2. Adaugă un **Email Service** (Gmail / Outlook)
-3. Creează **2 template-uri**:
+3. Creează **2 template-uri** — la ambele, **To Email** = `{{to_email}}`
 
 ### OTP reset parolă
 Variabile: `{{to_email}}`, `{{user_name}}`, `{{otp_code}}`, `{{salon_name}}`

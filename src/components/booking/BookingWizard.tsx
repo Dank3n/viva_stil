@@ -12,7 +12,6 @@ import {
   type Appointment,
   type BookingStep,
 } from '../../booking/types'
-import { businessInfo } from '../../config/business'
 import { services } from '../../data/services'
 import {
   getSpecialistById,
@@ -58,6 +57,7 @@ export function BookingWizard() {
   const [emailDelivery, setEmailDelivery] = useState<
     'sent' | 'local' | 'pending' | null
   >(null)
+  const [emailError, setEmailError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [availabilityTick, setAvailabilityTick] = useState(0)
 
@@ -152,6 +152,7 @@ export function BookingWizard() {
     if (submitting) return
     setSubmitting(true)
     setEmailDelivery('pending')
+    setEmailError(null)
 
     try {
       const resolvedStaff = resolveStaffForSlot(serviceIds, staffId, date, time)
@@ -182,11 +183,12 @@ export function BookingWizard() {
         clientName: appointment.clientName,
         services: selectedServices.map((s) => s.name).join(', '),
         date: dateLabel,
-        time: `${appointment.time} (${businessInfo.name})`,
+        time: appointment.time,
         staff: staffName,
       })
 
       setEmailDelivery(mail.ok ? 'sent' : 'local')
+      setEmailError(mail.ok ? null : mail.reason)
       setConfirmed(appointment)
       setStep('success')
     } finally {
@@ -202,6 +204,8 @@ export function BookingWizard() {
     setTime('')
     setStartsAt('')
     setConfirmed(null)
+    setEmailDelivery(null)
+    setEmailError(null)
     setParams({}, { replace: true })
   }
 
@@ -281,6 +285,7 @@ export function BookingWizard() {
               getSpecialistById(confirmed.staffId)?.name ?? staffLabel
             }
             emailDelivery={emailDelivery === 'pending' ? null : emailDelivery}
+            emailError={emailError}
             onRestart={restart}
           />
         ) : null}

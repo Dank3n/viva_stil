@@ -5,6 +5,7 @@ import {
   formatDurationLabel,
   totalDurationMinutes,
 } from '../../../booking/duration'
+import { getBookingEmailSetupHint } from '../../../account/notify'
 import type { Service } from '../../../data/services'
 import { Button } from '../../ui/Button'
 
@@ -48,6 +49,7 @@ export function DetailsStep({
   const serviceIds = selectedServices.map((s) => s.id)
   const totalMins = totalDurationMinutes(serviceIds)
   const endTime = slotEndTime(time, serviceIds)
+  const emailSetupHint = getBookingEmailSetupHint()
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -190,6 +192,15 @@ export function DetailsStep({
           <p className="text-sm text-red-400" role="alert">
             {error}
           </p>
+        ) : null}
+
+        {emailSetupHint ? (
+          <aside
+            className="border border-line bg-elevated/40 p-3 text-xs leading-relaxed text-muted"
+            role="status"
+          >
+            {emailSetupHint}
+          </aside>
         ) : null}
 
         <Button
