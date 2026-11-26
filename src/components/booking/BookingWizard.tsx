@@ -188,7 +188,11 @@ export function BookingWizard() {
       })
 
       setEmailDelivery(mail.ok ? 'sent' : 'local')
-      setEmailError(mail.ok ? null : mail.reason)
+      setEmailError(
+        mail.ok
+          ? null
+          : mail.reason || 'Emailul nu a putut fi trimis. Încearcă din nou.',
+      )
       setConfirmed(appointment)
       setStep('success')
     } finally {

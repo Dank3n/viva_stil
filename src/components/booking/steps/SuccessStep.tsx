@@ -81,6 +81,12 @@ export function SuccessStep({
               {emailError ? (
                 <p className="mt-2 break-words text-red-400/90">{emailError}</p>
               ) : null}
+              <p className="mt-2 text-muted">
+                Dacă e prima trimitere, verifică inbox-ul{' '}
+                <span className="text-champagne-soft">{businessInfo.email}</span>{' '}
+                pentru un email FormSubmit de activare, apoi reîncearcă
+                programarea.
+              </p>
             </aside>
           )}
         </div>

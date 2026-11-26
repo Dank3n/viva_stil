@@ -26,7 +26,7 @@ export const businessInfo: BusinessInfo = {
   shortName: 'VIVA',
   tagline: 'Beauty. Care. Confidence.',
   phone: '0723 858 697',
-  email: '',
+  email: 'viva_stil@yahoo.com',
   address: 'Bulevardul Octavian Goga Nr. 22',
   city: 'București 030984',
   instagram: '@vivastil.22',

@@ -12,52 +12,18 @@
 
 Fără aceste variabile, site-ul folosește localStorage (doar pe același browser).
 
-## 2. EmailJS (confirmare programare + cod reset parolă)
+## 2. Email la programare (FormSubmit — fără cont plătit)
 
-Fără `.env` completat, programarea se salvează dar **emailul nu pleacă**.
-Cheile trebuie să existe **la build** (`npm run dev` / deploy).
+Implicit, confirmările merg prin [FormSubmit](https://formsubmit.co) către
+`viva_stil@yahoo.com`, cu **CC** pe emailul clientului din formular.
 
-1. Cont pe [emailjs.com](https://www.emailjs.com) (plan free)
-2. Adaugă un **Email Service** (Gmail / Outlook)
-3. Creează **2 template-uri** — la ambele, **To Email** = `{{to_email}}`
+**O singură dată:** la prima programare (sau activare), FormSubmit trimite pe
+Yahoo un mail „Confirm your email” — deschide-l și apasă linkul. După asta,
+confirmările pleacă automat.
 
-### OTP reset parolă
-Variabile: `{{to_email}}`, `{{user_name}}`, `{{otp_code}}`, `{{salon_name}}`
+Opțional în `.env`: `VITE_BOOKING_INBOX_EMAIL=viva_stil@yahoo.com`
 
-Exemplu body:
-```
-Salut {{user_name}},
-
-Codul tău pentru resetarea parolei la {{salon_name}} este: {{otp_code}}
-
-Expiră în 10 minute.
-```
-
-### Confirmare programare
-Variabile: `{{to_email}}`, `{{client_name}}`, `{{services}}`, `{{date}}`, `{{time}}`, `{{staff}}`, `{{salon_name}}`, `{{salon_phone}}`, `{{salon_address}}`
-
-Exemplu body:
-```
-Salut {{client_name}},
-
-Programarea ta la {{salon_name}} este confirmată.
-
-Servicii: {{services}}
-Data: {{date}}
-Ora: {{time}}
-Specialist: {{staff}}
-
-Adresă: {{salon_address}}
-Telefon: {{salon_phone}}
-```
-
-4. Completează în `.env`:
-   - `VITE_EMAILJS_SERVICE_ID`
-   - `VITE_EMAILJS_PUBLIC_KEY`
-   - `VITE_EMAILJS_TEMPLATE_ID` (OTP)
-   - `VITE_EMAILJS_BOOKING_TEMPLATE_ID` (confirmare)
-
-În template EmailJS, setează **To Email** = `{{to_email}}`.
+EmailJS rămâne opțional (OTP / alternativă).
 
 ## Fluxuri pe site
 

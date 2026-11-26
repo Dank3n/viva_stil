@@ -84,6 +84,16 @@ export function Contact() {
                   href={businessInfo.phone ? `tel:${businessInfo.phone.replace(/\s+/g, '')}` : undefined}
                   emptyHint="Numărul de telefon va fi afișat aici."
                 />
+                <Field
+                  label="Email"
+                  value={businessInfo.email}
+                  href={
+                    businessInfo.email
+                      ? `mailto:${businessInfo.email}`
+                      : undefined
+                  }
+                  emptyHint="Emailul salonului va fi afișat aici."
+                />
                 <div>
                   <p className="text-[0.65rem] font-medium uppercase tracking-[0.2em] text-taupe">
                     Social

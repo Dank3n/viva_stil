@@ -1,25 +1,29 @@
 /**
- * Emailuri via EmailJS (plan gratuit).
+ * Emailuri de pe site — fără backend.
  *
- * Obligatoriu în `.env` (apoi restart `npm run dev` / rebuild deploy):
- *   VITE_EMAILJS_SERVICE_ID
- *   VITE_EMAILJS_PUBLIC_KEY
- *   VITE_EMAILJS_TEMPLATE_ID              (OTP reset — și fallback booking)
- *   VITE_EMAILJS_BOOKING_TEMPLATE_ID      (confirmare programare; recomandat)
+ * Programări: FormSubmit → viva_stil@yahoo.com + CC pe emailul clientului.
+ *   (prima folosire: confirmă linkul FormSubmit din inbox Yahoo)
  *
- * În template-ul EmailJS, câmpul "To Email" trebuie să fie: {{to_email}}
- * (sau {{email}} — trimitem ambele).
+ * OTP reset parolă: FormSubmit către emailul clientului (sau EmailJS dacă e în .env).
  */
 
 import { businessInfo } from '../config/business'
 
 export type NotifyResult =
-  | { ok: true; delivery: 'emailjs' }
+  | { ok: true; delivery: 'formsubmit' | 'emailjs' }
   | { ok: false; delivery: 'local'; reason: string }
 
 function env(name: string): string | undefined {
   const value = (import.meta.env[name] as string | undefined)?.trim()
   return value || undefined
+}
+
+function salonInbox(): string {
+  return (
+    env('VITE_BOOKING_INBOX_EMAIL') ||
+    businessInfo.email ||
+    'viva_stil@yahoo.com'
+  )
 }
 
 function emailJsBase() {
@@ -45,19 +49,140 @@ export function isEmailJsConfigured(): boolean {
   return Boolean(emailJsBase() && otpTemplateId())
 }
 
+/** Confirmările de programare merg prin FormSubmit — mereu „configurate”. */
 export function isBookingEmailConfigured(): boolean {
-  return Boolean(emailJsBase() && bookingTemplateId())
+  return Boolean(salonInbox())
 }
 
 export function getBookingEmailSetupHint(): string | null {
-  if (isBookingEmailConfigured()) return null
-  const missing: string[] = []
-  if (!env('VITE_EMAILJS_SERVICE_ID')) missing.push('VITE_EMAILJS_SERVICE_ID')
-  if (!env('VITE_EMAILJS_PUBLIC_KEY')) missing.push('VITE_EMAILJS_PUBLIC_KEY')
-  if (!bookingTemplateId()) {
-    missing.push('VITE_EMAILJS_BOOKING_TEMPLATE_ID (sau VITE_EMAILJS_TEMPLATE_ID)')
+  return null
+}
+
+type FormSubmitPayload = {
+  to: string
+  subject: string
+  replyTo: string
+  name: string
+  fields: Record<string, string>
+  cc?: string
+}
+
+function buildFormSubmitFields(input: FormSubmitPayload): Record<string, string> {
+  const body: Record<string, string> = {
+    name: input.name,
+    email: input.replyTo,
+    _replyto: input.replyTo,
+    _subject: input.subject,
+    _template: 'table',
+    _captcha: 'false',
+    ...input.fields,
   }
-  return `Email neconfigurat. Lipsește în .env: ${missing.join(', ')}. Vezi supabase/SETUP.md.`
+  if (input.cc?.trim()) body._cc = input.cc.trim()
+  return body
+}
+
+/** Fallback non-AJAX — FormSubmit acceptă POST clasic din browser. */
+function sendFormSubmitViaForm(input: FormSubmitPayload): Promise<NotifyResult> {
+  return new Promise((resolve) => {
+    if (typeof document === 'undefined') {
+      resolve({
+        ok: false,
+        delivery: 'local',
+        reason: 'Trimite din browser, nu din server.',
+      })
+      return
+    }
+
+    const fields = buildFormSubmitFields(input)
+    const iframeName = `viva-fs-${Date.now()}`
+    const iframe = document.createElement('iframe')
+    iframe.name = iframeName
+    iframe.title = 'email-delivery'
+    iframe.setAttribute('aria-hidden', 'true')
+    iframe.style.cssText = 'display:none;width:0;height:0;border:0'
+    document.body.appendChild(iframe)
+
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = `https://formsubmit.co/${encodeURIComponent(input.to)}`
+    form.target = iframeName
+    form.style.display = 'none'
+
+    for (const [key, value] of Object.entries(fields)) {
+      const inputEl = document.createElement('input')
+      inputEl.type = 'hidden'
+      inputEl.name = key
+      inputEl.value = value
+      form.appendChild(inputEl)
+    }
+
+    document.body.appendChild(form)
+    form.submit()
+
+    window.setTimeout(() => {
+      form.remove()
+      iframe.remove()
+      console.info('[Viva Stil] Email trimis via FormSubmit (form POST).')
+      resolve({ ok: true, delivery: 'formsubmit' })
+    }, 1800)
+  })
+}
+
+async function sendFormSubmit(input: FormSubmitPayload): Promise<NotifyResult> {
+  const fields = buildFormSubmitFields(input)
+
+  try {
+    const res = await fetch(
+      `https://formsubmit.co/ajax/${encodeURIComponent(input.to)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(fields),
+      },
+    )
+
+    const text = await res.text().catch(() => '')
+    let parsed: { success?: string | boolean; message?: string } = {}
+    try {
+      parsed = JSON.parse(text) as {
+        success?: string | boolean
+        message?: string
+      }
+    } catch {
+      /* plain text OK */
+    }
+
+    const successFlag = parsed.success
+    const failedFlag = successFlag === false || successFlag === 'false'
+    const message = String(parsed.message || text || '')
+
+    if (!res.ok || failedFlag) {
+      // AJAX eșuat → încearcă POST clasic (merge pe site live / localhost)
+      if (
+        message.toLowerCase().includes('web server') ||
+        message.toLowerCase().includes('html files') ||
+        !res.ok
+      ) {
+        console.warn('[Viva Stil] FormSubmit AJAX eșuat, fallback form:', message)
+        return sendFormSubmitViaForm(input)
+      }
+      console.error('[Viva Stil] FormSubmit error:', message)
+      return {
+        ok: false,
+        delivery: 'local',
+        reason: message || `FormSubmit a răspuns ${res.status}`,
+      }
+    }
+
+    console.info('[Viva Stil] Email trimis via FormSubmit.', parsed)
+    return { ok: true, delivery: 'formsubmit' }
+  } catch (err) {
+    console.warn('[Viva Stil] FormSubmit fetch eșuat, fallback form:', err)
+    return sendFormSubmitViaForm(input)
+  }
 }
 
 async function sendEmailJs(
@@ -69,7 +194,7 @@ async function sendEmailJs(
     return {
       ok: false,
       delivery: 'local',
-      reason: getBookingEmailSetupHint() ?? 'EmailJS neconfigurat.',
+      reason: 'EmailJS neconfigurat.',
     }
   }
 
@@ -87,33 +212,21 @@ async function sendEmailJs(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-
     const text = await res.text().catch(() => '')
-
     if (!res.ok) {
-      const reason =
-        text ||
-        `EmailJS a răspuns ${res.status}. Verifică service/template/keys și că To Email = {{to_email}}.`
-      console.error('[Viva Stil] EmailJS error:', reason)
-      return { ok: false, delivery: 'local', reason }
+      return {
+        ok: false,
+        delivery: 'local',
+        reason: text || `EmailJS ${res.status}`,
+      }
     }
-
-    console.info('[Viva Stil] Email trimis via EmailJS.')
     return { ok: true, delivery: 'emailjs' }
   } catch (err) {
-    const reason =
-      err instanceof Error ? err.message : 'Nu s-a putut trimite emailul.'
-    console.error('[Viva Stil] EmailJS network error:', reason)
-    return { ok: false, delivery: 'local', reason }
-  }
-}
-
-/** Destinatar: EmailJS cere {{to_email}} sau {{email}} în câmpul To. */
-function recipientParams(toEmail: string): Record<string, string> {
-  return {
-    to_email: toEmail,
-    email: toEmail,
-    reply_to: toEmail,
+    return {
+      ok: false,
+      delivery: 'local',
+      reason: err instanceof Error ? err.message : 'EmailJS eșuat.',
+    }
   }
 }
 
@@ -122,20 +235,28 @@ export async function sendOtpEmail(input: {
   userName: string
   otpCode: string
 }): Promise<NotifyResult> {
-  const templateId = otpTemplateId()
-  if (!templateId) {
-    return {
-      ok: false,
-      delivery: 'local',
-      reason: 'Lipsește VITE_EMAILJS_TEMPLATE_ID în .env.',
-    }
+  if (isEmailJsConfigured()) {
+    const templateId = otpTemplateId()!
+    return sendEmailJs(templateId, {
+      to_email: input.toEmail,
+      email: input.toEmail,
+      user_name: input.userName,
+      client_name: input.userName,
+      otp_code: input.otpCode,
+      salon_name: businessInfo.name,
+    })
   }
-  return sendEmailJs(templateId, {
-    ...recipientParams(input.toEmail),
-    user_name: input.userName,
-    client_name: input.userName,
-    otp_code: input.otpCode,
-    salon_name: businessInfo.name,
+
+  // OTP pe emailul clientului (FormSubmit)
+  return sendFormSubmit({
+    to: input.toEmail,
+    subject: `Cod resetare parolă — ${businessInfo.name}`,
+    replyTo: salonInbox(),
+    name: input.userName,
+    fields: {
+      mesaj: `Salut ${input.userName},\n\nCodul tău pentru resetarea parolei la ${businessInfo.name} este: ${input.otpCode}\n\nExpiră în 10 minute.\n\nDacă nu ai cerut tu resetarea, ignoră acest mesaj.`,
+      cod_otp: input.otpCode,
+    },
   })
 }
 
@@ -147,17 +268,12 @@ export async function sendBookingConfirmationEmail(input: {
   time: string
   staff: string
 }): Promise<NotifyResult> {
-  const setupHint = getBookingEmailSetupHint()
-  if (setupHint) {
-    console.warn('[Viva Stil]', setupHint)
-    return { ok: false, delivery: 'local', reason: setupHint }
-  }
-
-  const templateId = bookingTemplateId()!
-  const usingOtpFallback =
-    !env('VITE_EMAILJS_BOOKING_TEMPLATE_ID') && Boolean(otpTemplateId())
+  const salon = salonInbox()
+  const clientEmail = input.toEmail.trim().toLowerCase()
 
   const summary = [
+    `Client: ${input.clientName}`,
+    `Email client: ${clientEmail}`,
     `Servicii: ${input.services}`,
     `Data: ${input.date}`,
     `Ora: ${input.time}`,
@@ -167,29 +283,87 @@ export async function sendBookingConfirmationEmail(input: {
     `Telefon salon: ${businessInfo.phone}`,
   ].join('\n')
 
-  const result = await sendEmailJs(templateId, {
-    ...recipientParams(input.toEmail),
-    client_name: input.clientName,
-    user_name: input.clientName,
-    services: input.services,
-    date: input.date,
-    time: input.time,
-    staff: input.staff,
-    salon_name: businessInfo.name,
-    salon_phone: businessInfo.phone,
-    salon_address: `${businessInfo.address}, ${businessInfo.city}`,
-    // fallback pe template OTP: corpul „codului” = sumarul programării
-    otp_code: usingOtpFallback ? summary : input.time,
-    message: summary,
-    subject: `Confirmare programare — ${businessInfo.name}`,
-  })
+  const clientMessage = [
+    `Salut ${input.clientName},`,
+    '',
+    `Programarea ta la ${businessInfo.name} este confirmată.`,
+    '',
+    `Servicii: ${input.services}`,
+    `Data: ${input.date}`,
+    `Ora: ${input.time}`,
+    `Specialist: ${input.staff}`,
+    '',
+    `Adresă: ${businessInfo.address}, ${businessInfo.city}`,
+    `Telefon: ${businessInfo.phone}`,
+    '',
+    'Te așteptăm!',
+  ].join('\n')
 
-  if (!result.ok && usingOtpFallback) {
-    return {
-      ...result,
-      reason: `${result.reason} (folosit template OTP ca fallback — creează un template separat de confirmare).`,
-    }
+  // 1) Prefer EmailJS dacă e configurat (To = client)
+  if (emailJsBase() && bookingTemplateId()) {
+    const result = await sendEmailJs(bookingTemplateId()!, {
+      to_email: clientEmail,
+      email: clientEmail,
+      client_name: input.clientName,
+      user_name: input.clientName,
+      services: input.services,
+      date: input.date,
+      time: input.time,
+      staff: input.staff,
+      salon_name: businessInfo.name,
+      salon_phone: businessInfo.phone,
+      salon_address: `${businessInfo.address}, ${businessInfo.city}`,
+      message: clientMessage,
+      subject: `Confirmare programare — ${businessInfo.name}`,
+    })
+    if (result.ok) return result
+    console.warn('[Viva Stil] EmailJS booking failed, fallback FormSubmit:', result)
   }
 
-  return result
+  // 2) FormSubmit: notificare pe viva_stil@yahoo.com + CC pe emailul clientului
+  const toSalon = await sendFormSubmit({
+    to: salon,
+    subject: `Programare nouă — ${input.clientName} · ${input.date} ${input.time}`,
+    replyTo: clientEmail,
+    name: input.clientName,
+    cc: clientEmail,
+    fields: {
+      servicii: input.services,
+      data: input.date,
+      ora: input.time,
+      specialist: input.staff,
+      mesaj: summary,
+      confirmare_pentru_client: clientMessage,
+    },
+  })
+
+  // 3) Confirmare dedicată și pe inbox-ul clientului
+  const toClient = await sendFormSubmit({
+    to: clientEmail,
+    subject: `Confirmare programare — ${businessInfo.name}`,
+    replyTo: salon,
+    name: businessInfo.name,
+    fields: {
+      mesaj: clientMessage,
+      servicii: input.services,
+      data: input.date,
+      ora: input.time,
+      specialist: input.staff,
+      salon: businessInfo.name,
+      telefon_salon: businessInfo.phone,
+    },
+  })
+
+  if (toSalon.ok || toClient.ok) {
+    return { ok: true, delivery: 'formsubmit' }
+  }
+
+  return {
+    ok: false,
+    delivery: 'local',
+    reason:
+      toSalon.reason ||
+      toClient.reason ||
+      'Nu s-a putut trimite emailul de confirmare.',
+  }
 }

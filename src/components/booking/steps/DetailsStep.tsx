@@ -5,7 +5,6 @@ import {
   formatDurationLabel,
   totalDurationMinutes,
 } from '../../../booking/duration'
-import { getBookingEmailSetupHint } from '../../../account/notify'
 import type { Service } from '../../../data/services'
 import { Button } from '../../ui/Button'
 
@@ -49,7 +48,6 @@ export function DetailsStep({
   const serviceIds = selectedServices.map((s) => s.id)
   const totalMins = totalDurationMinutes(serviceIds)
   const endTime = slotEndTime(time, serviceIds)
-  const emailSetupHint = getBookingEmailSetupHint()
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -194,14 +192,10 @@ export function DetailsStep({
           </p>
         ) : null}
 
-        {emailSetupHint ? (
-          <aside
-            className="border border-line bg-elevated/40 p-3 text-xs leading-relaxed text-muted"
-            role="status"
-          >
-            {emailSetupHint}
-          </aside>
-        ) : null}
+        <p className="text-xs leading-relaxed text-muted">
+          Confirmarea se trimite automat pe emailul introdus mai sus (și la
+          salon).
+        </p>
 
         <Button
           type="submit"
